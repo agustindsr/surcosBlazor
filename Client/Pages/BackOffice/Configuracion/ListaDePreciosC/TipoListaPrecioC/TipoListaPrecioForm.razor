@@ -1,0 +1,66 @@
+﻿@inject HttpClient http
+@inject IJSRuntime js
+@inject IToastService toastService
+@attribute [Authorize(Roles = "Admin, Configuracion")]
+
+@if (tipoListaPrecio != null)
+{
+
+    <EditForm Model="@tipoListaPrecio" OnValidSubmit="Confirmar">
+        <DataAnnotationsValidator />
+        <div class="form-group">
+            <label>Nombre</label>
+            <input class="form-control" @bind="@tipoListaPrecio.nombre" />
+            <ValidationMessage For="(()=>tipoListaPrecio.nombre)"></ValidationMessage>
+        </div>
+        <div class="form-group">
+            <label>Minimo de Compra ($)</label>
+            <input class="form-control" type="number" step="0.00000000000000001" @bind="@tipoListaPrecio.minimoDeCompra" />
+        </div>
+        <button class="btn-outline-olive btn-block" type="submit">@accion</button>
+    </EditForm>
+}
+@code {
+    [Parameter]
+    public TipoListaPrecio tipoListaPrecio { get; set; }
+    [Parameter]
+    public string accion { get; set; }
+    [Parameter]
+    public EventCallback callback { get; set; }
+
+    public async Task Confirmar()
+    {
+        try
+        {
+            if (accion == "Crear")
+            {
+                await http.PostJsonAsync("api/tipoListaPrecio", tipoListaPrecio);
+                toastService.ShowSuccess($"Se creó correctamente el Tipo de Lista de precio {tipoListaPrecio.nombre}");
+
+            }
+            if (accion == "Editar")
+            {
+                await http.PutJsonAsync($"api/tipoListaPrecio/{tipoListaPrecio.Id}", tipoListaPrecio);
+                toastService.ShowSuccess($"Se editó correctamente el Tipo de Lista de precio {tipoListaPrecio.nombre}");
+
+            }
+        }
+        catch (Exception ex)
+        {
+
+            toastService.ShowError($"Ocurrió un error:  {ex.Message}");
+
+        }
+
+
+        await CloseAllModals();
+
+        await callback.InvokeAsync(new Object());
+
+    }
+    public async Task CloseAllModals()
+    {
+
+        await js.InvokeAsync<object>("CloseAllModals");
+    }
+}

@@ -1,0 +1,63 @@
+﻿@layout BackOfficeLayout
+@attribute [Authorize(Roles = "Admin, Configuracion")]
+
+@page "/BackOffice/Configuraciones/ListadoDepositos"
+@inject HttpClient http
+@inject NavigationManager uri
+    <nav aria-label="breadcrumb">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item" @onclick="@(()=>uri.NavigateTo("/BackOffice/Configuraciones"))">Configuraciones</li>
+            <li class="breadcrumb-item active" aria-current="page" @onclick="@(()=>uri.NavigateTo("/BackOffice/Configuraciones/ListadoDepositos"))">Listado Categorias Cliente</li>
+        </ol>
+    </nav>
+<div>
+    <div class="border-bottom border-secondary my-2">
+        <h2 class="">Depositos</h2>
+    </div>
+    <BotoneraAcciones T="Deposito" agregar="true">
+        <modalContentAgregar>
+            <DepositoForm deposito="new Deposito()" callback="(async() => {this.StateHasChanged();await tablaGenerica.ListarItemsApi(); })"
+                          accion="Crear">
+            </DepositoForm>
+        </modalContentAgregar>
+    </BotoneraAcciones>
+    <TablaGenerica @ref="tablaGenerica"
+                   elementosAmostrar='new List<string[]> {
+                                new string[3]{"Id", "Id","Texto" },
+                                new string[3]{ "Nombre","nombre","Text" }}'
+                   acciones="true"
+                   consultaApi='new TablaGenerica<Deposito>.ConsultarApi {  baseUrl=$"api/Deposito?", consultaApi=true, paginacion=true, cantidadDeRegistrosAMostrar=10}'
+                   editar="true"
+                   selectTitem="((Deposito deposito)=>ElementoSeleccionado(deposito))"
+                   eliminar="true"
+                   eliminarFunc="@(async ()=>await EliminarDeposito(deposito))">
+
+        <modalContentEditar>
+            <DepositoForm deposito="deposito" callback="(()=>this.StateHasChanged())"
+                          accion="Editar">
+            </DepositoForm>
+        </modalContentEditar>
+
+    </TablaGenerica>
+</div>
+@code {
+    public Deposito deposito { get; set; }
+    public TablaGenerica<Deposito> tablaGenerica { get; set; }
+
+
+    public async Task EliminarDeposito(Deposito deposito)
+    {
+        await http.DeleteAsync($"api/deposito/{deposito.Id}");
+        this.deposito = null;
+
+    }
+
+
+    public Deposito ElementoSeleccionado(Deposito deposito)
+    {
+
+        this.deposito = deposito;
+        this.StateHasChanged();
+        return deposito;
+    }
+}

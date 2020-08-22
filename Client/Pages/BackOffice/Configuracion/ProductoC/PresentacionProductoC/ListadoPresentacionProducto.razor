@@ -1,0 +1,67 @@
+﻿@layout BackOfficeLayout
+@attribute [Authorize(Roles = "Admin, Configuracion")]
+
+@page "/BackOffice/Configuraciones/ListadoPresentacionProducto"
+@inject HttpClient http
+
+@inject NavigationManager uri
+<nav aria-label="breadcrumb">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item" @onclick="@(()=>uri.NavigateTo("/BackOffice/Configuraciones"))">Configuraciones</li>
+        <li class="breadcrumb-item active" aria-current="page" @onclick="@(()=>uri.NavigateTo("/BackOffice/Configuraciones/ListadoPresentacionProducto"))">Listado Presentaciones Producto</li>
+    </ol>
+</nav>
+<div>
+    <div class="border-bottom border-secondary my-2">
+        <h2 class="">Presentaciones Producto</h2>
+    </div>
+    <BotoneraAcciones T="PresentacionProducto" agregar="true">
+        <modalContentAgregar>
+            <PresentacionProductoForm presentacionProducto="new PresentacionProducto()" callback="(async() => {this.StateHasChanged();await tablaGenerica.ListarItemsApi(); })"
+                                      accion="Crear">
+            </PresentacionProductoForm>
+        </modalContentAgregar>
+    </BotoneraAcciones>
+    <TablaGenerica @ref="tablaGenerica"
+                   elementosAmostrar='new List<string[]> {
+                                new string[3]{"Id", "Id","Texto" },
+                                new string[3]{ "Nombre","nombre","Text" },
+                                  new string[3]{ "Cantidad Kg/Lt","cantidad","Text" },
+                                     new string[3]{ "Unidad","Unidad.nombre","Text" }}
+               '
+                   acciones="true"
+                   consultaApi='new TablaGenerica<PresentacionProducto>.ConsultarApi {  baseUrl=$"api/presentacionProducto?", consultaApi=true, paginacion=true, cantidadDeRegistrosAMostrar=10}'
+                   editar="true"
+                   selectTitem="((PresentacionProducto presentacionProducto)=>ElementoSeleccionado(presentacionProducto))"
+                   eliminar="true"
+                   eliminarFunc="@(async ()=>await EliminarPresentacionProducto(presentacionProducto))">
+
+        <modalContentEditar>
+            <PresentacionProductoForm presentacionProducto="presentacionProducto" callback="(()=>this.StateHasChanged())"
+                                      accion="Editar">
+            </PresentacionProductoForm>
+        </modalContentEditar>
+
+    </TablaGenerica>
+</div>
+@code {
+    public PresentacionProducto presentacionProducto { get; set; }
+    public TablaGenerica<PresentacionProducto> tablaGenerica { get; set; }
+
+
+    public async Task EliminarPresentacionProducto(PresentacionProducto presentacionProducto)
+    {
+        await http.DeleteAsync($"api/presentacionProducto/{presentacionProducto.Id}");
+        this.presentacionProducto = null;
+
+    }
+
+
+    public PresentacionProducto ElementoSeleccionado(PresentacionProducto presentacionProducto)
+    {
+
+        this.presentacionProducto = presentacionProducto;
+        this.StateHasChanged();
+        return presentacionProducto;
+    }
+}

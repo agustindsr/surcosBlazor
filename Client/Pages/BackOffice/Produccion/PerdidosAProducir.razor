@@ -1,0 +1,152 @@
+﻿
+@page "/BackOffice/Produccion/PedidosAProducir"
+@using SurcosBlazor.Shared.Entidades
+@layout BackOfficeLayout
+@inject HttpClient http
+@inject AuthenticationStateProvider authStateProvider
+@inject IRepositorio repositorio
+@inject IToastService toastService
+@attribute [Authorize(Roles = "Admin, Ventas")]
+@inject NavigationManager uri
+
+<nav aria-label="breadcrumb">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item" @onclick="@(()=>uri.NavigateTo("BackOffice/Produccion"))">Produccion</li>
+        <li class="breadcrumb-item active" aria-current="page" @onclick="@(()=>uri.NavigateTo("BackOffice/Produccion/PedidosAProducir"))">Pedidos a producir</li>
+
+    </ol>
+</nav><div class="d-flex p-4 col-md-12  mx-0 px-0 row align-items-center" style="box-shadow:1px 1px 3px #323232">
+    <div class="col-md-4  mx-0 px-0">
+        <label class="col-md-12 mx-0 px-0">Fecha Entrega</label>
+        <input class="form-control  mx-0 px-0" type="date" @onchange="@((ChangeEventArgs e)=> { fechaEntrega = Convert.ToDateTime(e.Value); })" />
+
+    </div>
+    <div class="d-inline-block  mx-md-4 mx-sm-0 px-sm-4 px-md-4">
+
+        <SelectGenerico T="Vendedor" TList="vendedores" Label="Vendedor" Context="Vendedor" SelectItem="@((Vendedor vendedor)=> { this.vendedor = vendedor;  })">
+            <TTemplate>
+                <div class="d-flex" style="line-height:25px"><img src="@Vendedor.Foto" width="25" height="25" style="border-radius:50%;margin-right:5px;" /> @Vendedor.nombre</div>
+            </TTemplate>
+        </SelectGenerico>
+    </div>
+    <div class="mx-2">
+        Solo confirmados
+        @if (soloConfirmados)
+        {
+            <input type="checkbox" checked @onclick="@(() => { soloConfirmados = false; filtrarPedidos(); })" />
+        }
+        else
+        {
+            <input type="checkbox" @onclick="@(() => { soloConfirmados = true; filtrarPedidos(); })" />
+
+        }
+    </div>
+    <div class="d-inline-block  mx-2 px-0">
+        <div class="btn btn-info" @onclick="@(async()=> { pedidos = null ; pedidosFiltrados = null ; await ListarPedidos(); })">Buscar</div>
+
+    </div>
+
+</div>
+<div class="my-2">
+    <ListadoGenerico listado="pedidos">
+        <HayRegistros>
+
+            <div class="accordion my-4" id="accordionExample">
+                @foreach(Pedido pedido in pedidosFiltrados) { 
+                <div class="card my-2">
+                    <div class="card-header p-0  bg-white" id="headingOne">
+                        <h5 class="mb-0">
+                            <button class="p-2 btn-block btn @(pedido.EstadoPedidoId == 1? "btn-outline-olive":"btn-outline-info")" @onclick="@(async () => { detalles = null; await buscarDetalles(pedido.Id); })"type="button" data-toggle="collapse" data-target="@($"#Pedido{pedido.Id}")" aria-expanded="true" aria-controls="@($"Pedido{pedido.Id}")">
+                                <strong>@pedido.nombreCliente, @pedido.apellidoCliente (@pedido.EstadoPedido.nombre) Fecha del pedido: @pedido.fecha.ToString("dd/MM HH:mm")</strong>
+                            </button>
+                        </h5>
+                    </div>
+
+                    <div id="@($"Pedido{pedido.Id}")" class="collapse" aria-labelledby="headingOne" data-parent="#accordionExample">
+                        <div class="card-body">
+                            <ListadoGenerico listado="detalles">
+                                <HayRegistros>
+                                    <table class="table table-sm">
+                                        <thead>
+
+                                            <tr>
+                                                <td>Producto</td>
+                                                <td>Cantidad</td>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            @foreach (DetallePedido detalle in detalles)
+                                            {
+                                                <tr>
+                                                    <td>@detalle.ProductoPresentacion.Producto.nombre, @detalle.ProductoPresentacion.PresentacionProducto.nombre</td>
+                                                    <td>@detalle.cantidad</td>
+                                                </tr>
+                                            }
+                                        </tbody>
+                                    </table>
+                                </HayRegistros>
+                            </ListadoGenerico>        
+                        </div>
+                    </div>
+                </div>
+
+                }
+            </div>
+        </HayRegistros>
+    </ListadoGenerico>
+</div>
+@code {
+    public DateTime fechaEntrega { get; set; } = DateTime.Now;
+    public Vendedor vendedor { get; set; }
+    public List<Vendedor> vendedores { get; set; }
+    public List<SurcosBlazor.Shared.Entidades.Pedido> pedidos { get; set; } = new List<Pedido>();
+    public List<SurcosBlazor.Shared.Entidades.Pedido> pedidosFiltrados { get; set; } = new List<Pedido>();
+    public bool soloConfirmados { get; set; }
+    public string userName { get; set; }
+    public System.Security.Claims.ClaimsPrincipal User { get; set; }
+    public List<DetallePedido> detalles { get; set; }
+    public async Task ListarPedidos()
+    {
+        pedidos = await http.GetJsonAsync<List<SurcosBlazor.Shared.Entidades.Pedido>>($"api/pedido/PedidosPendienteDeProducir?vendedorId={vendedor?.Id}&diaEntrega={fechaEntrega.Day}&mesEntrega={fechaEntrega.Month}&añoEntrega={fechaEntrega.Year}&cantidadDeRegistros=20");
+        filtrarPedidos();
+    }
+    public void filtrarPedidos() {
+        if (soloConfirmados)
+        {
+
+            pedidosFiltrados = pedidos.Where(x => x.EstadoPedidoId == 2).ToList();
+
+        }
+        else {
+            pedidosFiltrados = pedidos;
+
+        }
+
+
+    }
+    public async Task buscarDetalles(int pedidoId) {
+        detalles = null;
+        detalles = await http.GetJsonAsync<List<DetallePedido>>($"api/pedido/GetDetallePedido?pedidoId={pedidoId}");
+    }
+    protected override async Task OnInitializedAsync()
+    {
+        var authState = await authStateProvider.GetAuthenticationStateAsync();
+        User = authState.User;
+        userName = User.Identity.Name;
+        await ListarVendedores();
+    }
+    public async Task ListarVendedores()
+    {
+        var respuesta = await repositorio.Get<List<Vendedor>>($"api/pedido/vendedoresHabilitados?userName={userName}");
+        if (!respuesta.Error)
+        {
+            vendedores = respuesta.Response;
+        }
+        else
+        {
+            toastService.ShowError(await respuesta.HttpResponseMessage.Content.ReadAsStringAsync());
+        }
+    }
+
+
+}

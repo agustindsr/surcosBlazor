@@ -1,0 +1,106 @@
+﻿
+@page "/BackOffice/Tesoreria/ListadoRecibosCobranza"
+@inject IRepositorio repositorio
+@layout BackOfficeLayout
+@attribute [Authorize(Roles = "Admin, Tesoreria")]
+@inject IRepositorio repositorio
+@inject NavigationManager uri
+
+
+<nav aria-label="breadcrumb">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item" @onclick="@(() => uri.NavigateTo("BackOffice/Tesoreria"))">Tesoreria</li>
+        <li class="breadcrumb-item active" aria-current="page" @onclick="@(() => uri.NavigateTo("BackOffice/Tesoreria/ListadoRecibosCobranza"))">Listado Recibos Cobranza</li>
+    </ol>
+</nav>
+<div class="listadoClientes">
+    <div class="d-flex justify-content-between">
+        <h3>Recibos Cobranza @(recibosCobranza != null ? $"({registrosTotales})" : "")</h3>
+        <div class="d-flex">
+            <div class="btn btn-sm btn-olive" @onclick="@(() => uri.NavigateTo($"/BackOffice/Tesoreria/ReciboCobranza"))">Nuevo Recibo Cobranza</div>
+
+        </div>
+    </div>
+    <ListadoGenerico listado="recibosCobranza">
+        <HayRegistros>
+            <table class="table table-sm my-2">
+                <tr class="">
+
+                    <th>Fecha</th>
+                    <th>Proveedor</th>
+                    <th>Estado</th>
+
+                    <th>Total</th>
+
+
+
+
+                </tr>
+                @foreach (ReciboCobranzas reciboCobranza in recibosCobranza)
+                {
+
+                    <tr class="ordenPago trSeleccionable" @onclick="@(() => uri.NavigateTo($"/BackOffice/Tesoreria/DetalleReciboCobranza/{reciboCobranza.Id}"))">
+                        <td>@(reciboCobranza.fecha.ToString("dd:MM HH:mm"))</td>
+
+                        <td>@($"#{reciboCobranza.ClienteId} {reciboCobranza.Cliente.nombre}, {reciboCobranza.Cliente.apellido}")</td>
+                        <td>@reciboCobranza.EstadoRecibo.nombre</td>
+                        <td>@reciboCobranza.totalComprobante</td>
+                    </tr>
+                }
+
+            </table>
+            <div>
+                <PaginacionComp PaginaActual="paginaActual"
+                                PaginasTotales="paginasTotales"
+                                PaginaSeleccionada="paginaSeleccionada">
+
+                </PaginacionComp>
+            </div>
+        </HayRegistros>
+
+    </ListadoGenerico>
+</div>
+
+@code {
+    public List<ReciboCobranzas> recibosCobranza { get; set; }
+    private int paginaActual = 1;
+    private int paginasTotales;
+    private HttpResponseWrapper<List<ReciboCobranzas>> responseHttp;
+
+
+
+
+    public int cantidadDeRegistrosAMostrar { get; set; } = 25;
+    public int registrosTotales { get; set; }
+
+    protected override async Task OnInitializedAsync()
+    {
+
+
+        await ListarRecibos();
+
+
+    }
+
+    public async Task ListarRecibos()
+    {
+        responseHttp = await repositorio.Get<List<ReciboCobranzas>>($"api/reciboCobranza?pagina={paginaActual}&cantidadDeRegistros={cantidadDeRegistrosAMostrar}");
+        if (!responseHttp.Error)
+        {
+            recibosCobranza = responseHttp.Response;
+
+            registrosTotales = int.Parse(responseHttp.HttpResponseMessage.Headers.GetValues("conteo").FirstOrDefault());
+
+            paginasTotales = int.Parse(responseHttp.HttpResponseMessage.Headers.GetValues("totalPaginas").FirstOrDefault());
+
+        }
+
+
+    }
+    private async Task paginaSeleccionada(int pagina)
+    {
+        paginaActual = pagina;
+        await ListarRecibos();
+    }
+
+}

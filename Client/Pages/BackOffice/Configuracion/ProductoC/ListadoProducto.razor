@@ -1,0 +1,82 @@
+﻿@layout BackOfficeLayout
+@attribute [Authorize(Roles = "Admin, Configuracion")]
+
+@page "/BackOffice/Configuraciones/ListadoProductos"
+@inject HttpClient http
+@inject NavigationManager uri
+@inject IJSRuntime js
+@using SurcosBlazor.Client.Repositorio
+@inject IRepositorio  repositorio
+
+<nav aria-label="breadcrumb">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item" @onclick="@(()=>uri.NavigateTo("/BackOffice/Configuraciones"))">Configuraciones</li>
+        <li class="breadcrumb-item active" aria-current="page" @onclick="@(()=>uri.NavigateTo("BackOffice/Configuraciones/ListadoProductos"))">Listado Productos</li>
+    </ol>
+</nav>
+<div>
+    <div class="border-bottom border-secondary my-2">
+        <h2 class="">Productos</h2>
+    </div>
+    <BotoneraAcciones Context="producto"
+                      Titem="producto"
+                      agregar="true">
+        <modalContentAgregar>
+            <ProductoForm accion="Crear" producto="new Producto()" callback="(async () => { await tablaGenerica.ListarItemsApi(); })"></ProductoForm>
+        </modalContentAgregar>
+
+
+    </BotoneraAcciones>
+    <div class="col-md-12 mx-0 px-0  my-1">
+        <div class="col-md-6 row">
+            <div class="col-md-8 mx-0 px-0">
+                <strong>Filtrar </strong><input class="form-control" @bind="filtro" @bind:event="oninput" @onkeydown="@(async(KeyboardEventArgs e)=> { if (e.Key == "Enter") { await Filtrar();} })" />
+            </div>
+        </div>
+    </div>
+    <TablaGenerica @ref="tablaGenerica"
+                   elementosAmostrar='new List<string[]> { new string[3]{"Id", "Id","Texto" },new string[3]{ "Nombre","nombre","Text"},new string[3]{ "Foto","Foto","Imagen" },new string[3]{ "Categoria","CategoriaProducto.nombre","Text"}}'
+                   consultaApi='new TablaGenerica<Producto>.ConsultarApi {  consultaApi= true, baseUrl= $"api/producto?filtro={filtro}&", paginacion=true, cantidadDeRegistrosAMostrar=40}'
+                   acciones="true"
+                   detalle="true"
+                   editar="true"
+                   selectTitem="((Producto producto)=>ElementoSeleccionado(producto))"
+                   detalleUrl="BackOffice/Configuraciones/Producto"
+                   eliminar="true"
+                   eliminarFunc="(async ()=> { await EliminarProducto(producto); this.StateHasChanged(); })">
+
+        <modalContentEditar>
+            <ProductoForm producto="producto" callback="(()=>this.StateHasChanged())" accion="Editar"></ProductoForm>
+        </modalContentEditar>
+
+    </TablaGenerica>
+
+</div>
+
+
+@code {
+
+    public List<Producto> productos { get; set; }
+    public Producto producto { get; set; }
+    public TablaGenerica<Producto> tablaGenerica;
+    public string filtro { get; set; }
+
+
+    public async Task EliminarProducto(Producto producto)
+    {
+        await repositorio.Delete($"api/producto/{producto.Id}");
+        this.StateHasChanged();
+    }
+    public Producto ElementoSeleccionado(Producto prov)
+    {
+        producto = prov;
+        this.StateHasChanged();
+        return producto;
+    }
+
+    public async Task Filtrar() {
+
+       await  tablaGenerica.ListarItemsApi();
+    }
+
+}

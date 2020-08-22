@@ -1,0 +1,179 @@
+﻿@page "/BackOffice/Ventas/DetallePedido/{Id:int}"
+@inject IRepositorio repositorio
+@inject IToastService toastService
+@layout BackOfficeLayout
+@inject IJSRuntime js
+@inject NavigationManager uri
+@attribute [Authorize(Roles = "Admin, Ventas")]
+
+<nav aria-label="breadcrumb">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item" @onclick="@(()=>uri.NavigateTo("BackOffice/Ventas"))">Ventas</li>
+        <li class="breadcrumb-item " @onclick="@(()=>uri.NavigateTo("BackOffice/Ventas/ListadoPedidos"))">Pedidos</li>
+
+        <li class="breadcrumb-item active" aria-current="page" @onclick="@(()=>uri.NavigateTo($"BackOffice/Ventas/DetallePedido/{@pedido.Id}"))">Detalle Pedido </li>
+    </ol>
+</nav>
+<div class="pedido  mx-0 px-0">
+    <div class="d-flex justify-content-between border-bottom border-secondary">
+        <h2 class="">Pedido</h2>
+        <div>
+            <div class="btnEditar btn btn-sm btn-warning " @onclick="@(()=>uri.NavigateTo($"/BackOffice/Ventas/Pedido/{pedido.Id}"))">
+                <i class="fas fa-edit"></i> <span>Editar</span>
+            </div>
+            <div class="btnEditar btn btn-sm btn-info " @onclick="@(()=>uri.NavigateTo($"/BackOffice/Ventas/ComprobanteDesdePedido/{pedido.Id}"))">
+                <span>Facturar</span>
+            </div>
+        </div>
+    </div>
+
+    <div class="cabeceraPedido  mx-0 px-0">
+        <div class="col-md-12 row mx-0 px-0">
+            <div class="col-md-12  mx-0 px-0">
+                <ul class="nav nav-tabs mt-2" id="myTab" role="tablist">
+                    <li class="nav-item">
+                        <a class="nav-link active" id="home-tab" data-toggle="tab" href="#home" role="tab" aria-controls="home" aria-selected="true">Datos Generales</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" id="profile-tab" data-toggle="tab" href="#profile" role="tab" aria-controls="profile" aria-selected="false">Direccion de entrega</a>
+                    </li>
+
+                </ul>
+                <div class="tab-content p-4" id="myTabContent" style="box-shadow:1px 1px 4px #213154; border-radius:5px;">
+                    <div class="tab-pane fade show active" id="home" role="tabpanel" aria-labelledby="home-tab">
+                        <div class="col-md-12"><strong>Id:</strong> @pedido.Id</div>
+                        <div class="d-flex justify-content-between my-1 p-1">
+                            <div class="col-md-4"><strong>Fecha:</strong> @pedido.fecha.ToString("dddd, dd/MM")</div>
+                            <div class="col-md-4"><strong>Lista:</strong> @pedido.ListaPrecios?.TipoListaPrecio?.nombre</div>
+                            <div class="col-md-4"><strong>Estado:</strong> @pedido.EstadoPedido?.nombre</div>
+                        </div>
+                        <div class="d-flex justify-content-between my-1 p-1">
+                            <div class="col-md-4"><strong>Cliente:</strong> @pedido.nombreCliente</div>
+                            <div class="col-md-4"><strong>Email:<a href="@($"mailto:{@pedido.emailCliente}?subject=Pedido%20Surcos%20&body={mensajeWsp}")"> @pedido.emailCliente</a></strong></div>
+                            <div class="col-md-4"><a href="@($"https://wa.me/54{pedido.celularCliente}/?text={mensajeWsp}")" target="_blank"><strong>Cel:</strong> <img src="/img/whatsapp.svg" height="20" />@pedido.celularCliente </a></div>
+
+                        </div>
+                        <div class="d-flex justify-content-between my-1 p-1">
+                            <div class="col-md-4"><strong>Vendedor:</strong> <img src="@pedido.Vendedor?.Foto" class="mr-1" style="width:25px; height:25px; border-radius:50%;" />@pedido.Vendedor?.nombre</div>
+                            <div class="col-md-4"><strong>Email:</strong>    @pedido.Vendedor?.email</div>
+                            <div class="col-md-4"><strong>Celular:</strong>    @pedido.Vendedor?.numeroCelular</div>
+
+                        </div>
+
+                    </div>
+                    <div class="tab-pane fade" id="profile" role="tabpanel" aria-labelledby="profile-tab">
+                        <div class="entrega my-2 col-md-12">
+                            <fieldset>
+                                <legend class="bg-light rounded p-2"> <i class="fas fa-map-marker-alt text-danger mr-1 border" style=""></i>Entrega -  @pedido.fechaEntrega.ToString("dddd, dd/MM")</legend>
+                                <div class="my-2 pl-2"><strong>Domicilio:</strong> @pedido.Domicilio?.calle @pedido.Domicilio?.numero - @pedido.Domicilio?.Provincia?.nombre, @pedido.Domicilio?.Departamento?.nombre </div>
+
+                                <div class="col-md-12 mx-0 px-0">@pedido.observaciones</div>
+                                <div class="col-md-12 mt-2 bg-secondary" id="mapaPedidoForm" style="height:200px">      </div>
+                            </fieldset>
+                        </div>
+                    </div>
+                </div>
+
+
+            </div>
+        </div>
+    </div>
+    <div class="detallesPedido my-3">
+        <div class="col-md-12 row mx-0 p-2 d-flex justify-content-between align-items-center my-2" style="background: linear-gradient(90deg, #262626, #213154);color:white;border-radius:5px;">
+
+            <h3>Productos (@pedido.detallePedido.Count())</h3>
+            <div class="mx-3"><strong>Lista de precios: @pedido.ListaPrecios?.TipoListaPrecio?.nombre</strong></div>
+        </div>
+        <table class="table table-sm d-xs-block" style="overflow-x:auto;">
+            <thead>
+                <tr class="bg-dark text-white p-1 rounded">
+                    <th>Producto</th>
+                    <th>Presentacion</th>
+                    <th>Cantidad</th>
+                    <th>Precio Unitario</th>
+                    <th>Total</th>
+                </tr>
+            </thead>
+            <tbody>
+
+                @foreach (DetallePedido detallePedido in pedido.detallePedido)
+                {
+                    <tr class="trSeleccionable">
+                        <td>
+                            <div><img class="mx-2" src="@detallePedido.ProductoPresentacion.Producto.Foto" style="height:20px; width:20px;border-radius:50%;" />@detallePedido.ProductoPresentacion.Producto.nombre.ToUpper()</div>
+                        </td>
+
+                        <td>@detallePedido.ProductoPresentacion.PresentacionProducto.nombre</td>
+
+                        <td>@detallePedido.cantidad</td>
+
+                        <td>$@detallePedido.precioUnitario</td>
+
+                        <td>$@(detallePedido.precioUnitario * detallePedido.cantidad)</td>
+                    </tr>
+                }
+                <tr class="bg-dark text-white rounded">
+                    <th colspan="4"></th>
+
+                    <th class=""><strong>Total:</strong> $@pedido.total</th>
+                </tr>
+            </tbody>
+
+        </table>
+
+    </div>
+
+
+</div>
+
+
+
+
+
+
+
+@code {
+    [Parameter]
+    public int Id { get; set; }
+    public Pedido pedido { get; set; } = new Pedido();
+    public string mensajeWsp { get; set; }
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (Id != 0)
+        {
+            var respuesta = await repositorio.Get<Pedido>($"api/pedido/{Id}");
+            if (!respuesta.Error)
+            {
+                pedido = respuesta.Response;
+                mensajeWsp = $"Hola%20{pedido.nombreCliente}%20necesitamos%20confirmación%20de%20tu%20pedido:%0A";
+                pedido.detallePedido.ForEach(x => { mensajeWsp += $"%0A%20-%20{x.cantidad}%20{x.ProductoPresentacion.Producto.nombre},%20{x.ProductoPresentacion.PresentacionProducto.nombre}%20%20${x.precioUnitario}"; });
+                mensajeWsp += $"%0A%0ATotal:%20${pedido.total}%0ADirección%20de%20entrega:%20{pedido.Domicilio.calle},%20{pedido.Domicilio.numero},%20{pedido.Domicilio.Provincia?.nombre},%20{pedido.Domicilio.Departamento?.nombre}";
+                mensajeWsp += $"%0ASerá%20entregado%20el%20{pedido.fechaEntrega.ToString("dddd dd/MM")}%20por%20{pedido.Vendedor.nombre}";
+                await ActualizarMapa();
+            }
+            else
+            {
+                toastService.ShowError(await respuesta.HttpResponseMessage.Content.ReadAsStringAsync());
+            }
+        }
+
+    }
+
+
+    public async Task ActualizarMapa()
+    {
+        if (pedido.Domicilio.numero != 0 && !string.IsNullOrWhiteSpace(pedido.Domicilio.calle) && pedido.Domicilio.Provincia != null && pedido.Domicilio.Departamento != null && !string.IsNullOrWhiteSpace(pedido.Domicilio.Departamento.nombre) && !string.IsNullOrWhiteSpace(pedido.Domicilio.Provincia.nombre))
+        {
+            List<decimal> coords = await js.InvokeAsync<List<decimal>>("buscarCoordenadas", $"{pedido.Domicilio.numero}+{pedido.Domicilio.calle}+{pedido.Domicilio.Departamento.nombre}+{pedido.Domicilio.Provincia.nombre}+Argentina", "mapaPedidoForm");
+            pedido.Domicilio.latitud = coords[0];
+            pedido.Domicilio.longitud = coords[1];
+
+        }
+        else
+        {
+            Console.WriteLine("No estan todos los campos completos");
+        }
+    }
+
+}

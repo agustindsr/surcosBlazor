@@ -1,0 +1,777 @@
+﻿@inject HttpClient http
+@inject IToastService toastService
+@inject IJSRuntime js
+@inject IRepositorio repositorio
+@using System.Net.Http;
+@using System.Text;
+@using System.Text.Json;
+@inject ILoginService loginService
+@using SurcosBlazor.Client.Auth
+
+<style>
+    #mapaCarrito {
+        height: 200px;
+        background: #808080;
+    }
+</style>
+@if (cargando)
+{
+    <Loading></Loading>
+}
+<EditForm Model="pedido" OnValidSubmit="@(async () => {
+                                              if (pedido.total < pedido.ListaPrecios?.TipoListaPrecio.minimoDeCompra) {
+                                                  await Alerta("center", "error", $"Tu pedido no supera el mínimo de compra para esta lista. El total del pedido debe ser mayor a ${pedido.ListaPrecios?.TipoListaPrecio.minimoDeCompra}");
+                                              }
+                                              else {
+                                                  cargando = true; await CrearPedido(); }
+                                          })"
+          OnInvalidSubmit="@(() => { Console.WriteLine("algo no esta bien"); })">
+    <Blazored.FluentValidation.FluentValidationValidator />
+    <div class="carritoCompras @(Show ? "show" : "close")">
+        <div @onclick="toggle" class="close mr-3"><i class="fas fa-times"></i></div>
+
+        <div class="carrusel mt-4">
+
+            <div class="swiper-container">
+                <div class="swiper-wrapper">
+
+                    <div class="swiper-slide">
+                        <div class="SeleccionProductos">
+                            <div class="my-1 d-flex justify-content-lg-between">
+                                <h2>
+
+                                    <i class="fas fa-shopping-cart"></i>
+                                    <strong>Lista @listaVigente?.TipoListaPrecio?.nombre?.ToUpper()</strong>
+                                </h2>
+                                <h3 class="mr-2"> Minimo de compra: $@listaVigente?.TipoListaPrecio?.minimoDeCompra</h3>
+                            </div>
+                            <div class="productoCabecera">
+                                <div class="">Producto</div>
+                                <div class="">Presentacion</div>
+                                @*<div class="d-none d-md-inline">Descripcion</div>*@
+                                <div class="">Cantidad</div>
+                                <div class="">Precio</div>
+                            </div>
+
+                            <div class="productos">
+                                @foreach (Producto producto in pedido.detallePedido.Select(x => x.ProductoPresentacion.Producto).Distinct().ToList())
+                                {
+                                    <div class="producto">
+                                        <div class="cabeceraProducto">
+                                            <img src="@producto.Foto" class="foto" />
+
+                                            <strong class="nombreProducto">@producto.nombre</strong>
+
+                                        </div>
+                                        <div class="itemsProducto">
+                                            @foreach (DetallePedido detalle in pedido.detallePedido.Where(x => x.ProductoPresentacion.ProductoId == producto.Id).ToList())
+                                            {
+                                                <div class="productoPresentacion">
+                                                    <div class="productoPresentacionNombre">@detalle.ProductoPresentacion.PresentacionProducto.nombre</div>
+                                                    <div class="cantidad">
+                                                        <div @onclick="@(async () => { if (detalle.cantidad > 1) { detalle.cantidad--; }; await carritoInLocalStore(); })">-</div>
+                                                        <input type="number" min="1" step="1" @bind="@detalle.cantidad" @onkeydown:preventDefault />
+                                                        <div @onclick="@(async () => { detalle.cantidad++; await carritoInLocalStore(); CalcularTotal(); })">+</div>
+                                                    </div>
+                                                    <div class="precio badge badge-light"> $@(detalle.precioUnitario * detalle.cantidad)</div>
+                                                    <div class="acciones" @onclick="@(async () => { pedido.detallePedido.Remove(detalle); await carritoInLocalStore(); CalcularTotal(); })"><i class="far fa-trash-alt"></i></div>
+
+                                                </div>
+
+                                            }
+                                        </div>
+                                    </div>
+                                }
+
+                            </div>
+                        </div>
+                        <h2 class="total justify-content-end"><strong>TOTAL: $@(pedido.detallePedido.Sum(x => x.precioUnitario * x.cantidad))</strong></h2>
+
+
+
+                    </div>
+                    <div class="swiper-slide">
+                        <div class="col-md-12 row mx-0 px-0">
+                            <div class="col-md-5 my-1 border-left">
+                                <h2 class="mb-2">
+                                    <strong><i class="fas fa-user-alt mr-1"></i> Datos Personales</strong>
+                                </h2>
+                                <div>
+                                    <div class="mt-2 col-md-12">
+                                        <InputMaterialize requerido="true" class="col-md-12" @bind-Value="pedido.emailCliente" label="Email"></InputMaterialize>
+
+                                        @*<input type="email" class="form-control" @bind="@pedido.emailCliente" placeholder="Email" />*@
+                                        <ValidationMessage For="(() => pedido.emailCliente)"></ValidationMessage>
+
+                                    </div>
+                                    <AuthorizeView>
+                                        <NotAuthorized Context="carrito">
+                                            <div class="mt-2 col-md-12">
+                                                <InputMaterialize requerido="true" class="col-md-12" type="password" label="Contraseña" @bind-Value="@this.contraseña"></InputMaterialize>
+
+                                                @*<ValidationMessage For="(() => pedido.emailCliente)"></ValidationMessage>*@
+
+                                            </div>
+                                        </NotAuthorized>
+                                    </AuthorizeView>
+
+                                    <div class="mt-2 col-md-12">
+                                        <InputMaterialize requerido="true" class="col-md-12" @bind-Value="pedido.nombreCliente" label="Nombre"></InputMaterialize>
+                                        @*<input type="text" class="form-control" @bind="@pedido.nombreCliente" placeholder="Nombre" />*@
+                                        <ValidationMessage For="(() => pedido.nombreCliente)"></ValidationMessage>
+
+                                    </div>
+                                    <div class="mt-2 col-md-12">
+                                        <InputMaterialize requerido="true" class="col-md-12" @bind-Value="pedido.apellidoCliente" label="Apellido"></InputMaterialize>
+                                        @*<input type="text" class="form-control" @bind="@pedido.nombreCliente" placeholder="Nombre" />*@
+                                        <ValidationMessage For="(() => pedido.apellidoCliente)"></ValidationMessage>
+
+                                    </div>
+
+                                    <div class="mt-2 col-12 col-md-12 row">
+                                        <div class="col-3 col-md-3">
+                                            <InputMaterialize cssClass="col-12 col-md-12 mx-0 px-0" requerido="true" label="C.Área" class="col-12 col-md-12" type="text" pattern="\d*" minlength="3" maxlength="3" name="celular" @bind-Value="codigoArea" @onblur="(()=> { pedido.celularCliente = codigoArea + celSinQuince; })"></InputMaterialize>
+                                        </div>
+                                        <div class="col-6 col-md-6">
+
+                                            <InputMaterialize cssClass="col-12 col-md-12 mx-0 px-0" requerido="true" label="Número sin 15" class="col-12 col-md-12" type="text" pattern="\d*" minlength="7" maxlength="7" name="celular" @bind-Value="celSinQuince" @onblur="(()=> { pedido.celularCliente = codigoArea + celSinQuince; })"></InputMaterialize>
+                                        </div>
+                                        <div class="col-3 col-md-3 d-flex align-items-center"><strong>@pedido.celularCliente</strong></div>
+
+                                        <ValidationMessage For="(() => pedido.celularCliente)"></ValidationMessage>
+
+                                    </div>
+
+                                </div>
+                            </div>
+
+                            <div class="col-md-7 mx-0 row my-1 border-left">
+                                <h2 class="mb-2">
+                                    <strong>
+                                        <i class="fas fa-map-marker-alt text-danger mr-1" style=""></i>
+                                        Direccion de Entrega
+                                    </strong>
+                                </h2>
+
+
+                                <div class="col-md-12 row mx-0 px-0 mt-1">
+                                    <div class="col-md-12">
+                                        <div class="col-md-12 row my-2">
+                                            <strong>@pedido.Domicilio.Provincia?.nombre, @pedido.Domicilio.Departamento?.nombre</strong>
+                                        </div>
+
+
+                                        <div class="col-md-12 row ">
+                                            <div class="col-xs-9 mt-2 pl-0 col-md-9">
+                                                <InputMaterialize requerido="true" label="Calle/Barrio" @bind-Value="pedido.Domicilio.calle" class="col-md-12" @onkeyup="ActualizarMapa"></InputMaterialize>
+                                                @*<input type="text" class="form-control" @bind="@pedido.Domicilio.calle" @bind:event="oninput" @onkeyup="ActualizarMapa" placeholder="Calle" />*@
+                                                <ValidationMessage For="(() => pedido.Domicilio.calle)"></ValidationMessage>
+
+                                            </div>
+                                            <div class="col-xs-3 mt-2 px-0 col-md-3">
+                                                <InputMaterialize requerido="true" label="Número" @bind-Value="pedido.Domicilio.numero" class="col-md-12" @onkeyup="ActualizarMapa"></InputMaterialize>
+
+                                                @*<input type="text" class="form-control" @bind="@pedido.Domicilio.numero" @bind:event="oninput" @onkeyup="ActualizarMapa" placeholder="Numero" />*@
+                                                <ValidationMessage For="(() => pedido.Domicilio.numero)"></ValidationMessage>
+
+                                            </div>
+                                        </div>
+                                        <div class="col-md-12 mx-0 pl-0 row">
+                                            <div class="mt-2 col-xs-6 col-md-6 pl-0">
+                                                @*<input type="text" class="form-control" @bind="@pedido.Domicilio.piso" placeholder="Piso" />*@
+                                                <InputMaterialize label="Piso/Casa" @bind-Value="pedido.Domicilio.piso" class="col-md-12" @onkeyup="ActualizarMapa"></InputMaterialize>
+
+                                                <ValidationMessage For="(() => pedido.Domicilio.piso)"></ValidationMessage>
+
+                                            </div>
+                                            <div class="mt-2  col-xs-6 col-md-6">
+                                                <InputMaterialize label="Manzana" @bind-Value="pedido.Domicilio.manzana" class="col-md-12" @onkeyup="ActualizarMapa"></InputMaterialize>
+
+                                                @*<input type="text" class="form-control" @bind="@pedido.Domicilio.manzana" placeholder="Manzana" />*@
+                                                <ValidationMessage For="(() => pedido.Domicilio.manzana)"></ValidationMessage>
+
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                </div>
+                                <div id="mapaCarrito" class="col-md-12 row my-2 mx-0 px-0" style="height:200px"></div>
+
+                            </div>
+
+                        </div>
+
+
+
+                    </div>
+
+                    <div class="swiper-slide">
+                        <div class="col-md-12 my-1">
+
+                            <div class="col-md-12 row mx-0 px-0">
+                                <div class="vendedores col-md-4 px-4 mx-4 d-flex pr-md-1 align-content-center align-items-center flex-column">
+                                    <h2 class="mb-2">
+                                        <strong><i class="fas fa-user-alt mr-1"></i>Vendedores</strong>
+                                    </h2>
+                                    <ListadoGenerico listado="vendedores">
+                                        <HayRegistros>
+                                            @foreach (Vendedor vendedor in vendedores)
+                                            {
+                                                <div class="vendedor mt-2" @onclick="(() => SelecVendedor(vendedor))" style="cursor:pointer">
+                                                    @if (vendedor.Id == pedido.VendedorId)
+                                                    {
+                                                        <input type="radio" name="vendedor" style="cursor:pointer" checked />
+                                                    }
+                                                    else
+                                                    {
+                                                        <input type="radio" name="vendedor" style="cursor:pointer" />
+
+                                                    }
+
+                                                    <img src="@vendedor.Foto" />
+
+                                                    <strong>@vendedor.nombre</strong>
+                                                </div>
+
+
+                                            }
+                                        </HayRegistros>
+                                    </ListadoGenerico>
+                                </div>
+                                <div class="entrega col-md-7  mx-0 px-0">
+                                    <h2 class="mb-2">
+                                        <strong><i class="far fa-calendar-alt mr-2"></i>Días de entrega</strong>
+                                    </h2>
+                                    @if (diasQueTrabaja != null && pedido.Vendedor != null)
+                                    {
+                                        <div class="my-2 row col-md-12"><span>Estos son los días en los que <strong> @pedido.Vendedor?.nombre </strong> puede entregarte, <strong> elije uno:</strong></span></div>
+                                        <div class="dias">
+                                            @foreach (DateTime dia in diasQueTrabaja)
+                                            {
+                                                <div class="dia @(dia.ToString("dd/MM/yyyy") == pedido.fechaEntrega.ToString("dd/MM/yyyy") ? "active" : "")"
+                                                     @onclick="@(() => pedido.fechaEntrega = dia)">
+                                                    @dia.ToString("dddd") @dia.ToString("dd/MM")
+                                                </div>
+                                            }
+                                        </div>
+                                        <div class="col-md-12 row  my-2 mx-0 px-0">
+                                            <div><strong>Observaciones</strong></div>
+                                            <textarea style="min-height:20vh;" class="col-md-12 form-control" placeholder="Escribe alguna observacion sobre la fecha y el horario de entrega. Ej: De 9 a 13hs." @bind="@pedido.observaciones" />
+                                        </div>
+                                    }
+                                    else
+                                    {
+                                        <p class="text-danger my-4">Debes selccionar un vendedor</p>
+                                    }
+
+                                </div>
+                            </div>
+                        </div>
+
+                    </div>
+
+                    <div class="swiper-slide">
+                        <div class="resumenPedido text-center" style="font-family: 'Roboto', sans-serif;">
+                            <div class="col-md-12 mx-0 row mt-2 px-0">
+                                <h2 class="col-md-12 row">
+                                    <strong>
+                                        <i class="fas fa-clipboard-list mr-2"></i>
+                                        Resumen
+                                    </strong>
+                                </h2>
+                            </div>
+                            <ValidationSummary></ValidationSummary>
+                            <div class="mx-0 p-2">
+                                <h2><strong>@pedido.nombreCliente @pedido.apellidoCliente</strong></h2>
+
+                                <div class="my-4">
+                                    <h3 style="color: #9E9B29"><strong>TOTAL</strong> </h3>
+
+                                    <h3><strong>$@(pedido.total)</strong></h3>
+                                </div>
+                                <div class="my-4">
+                                    <h3 style="color: #9E9B29"><strong>ENTREGA</strong></h3>
+                                    <div>
+                                        <p>  <strong>Fecha:</strong> <span>@pedido.fechaEntrega.ToString("dddd, dd/MM")</span> por <strong>@pedido.Vendedor?.nombre</strong> según las aclaraciones hechas.</p>
+                                        <p> <strong>Direccion:</strong> <span>@pedido.Domicilio.calle @pedido.Domicilio.numero - @pedido.Domicilio.Provincia?.nombre, @pedido.Domicilio.Departamento?.nombre</span></p>
+                                    </div>
+                                </div>
+                                <div class="my-4">
+                                    <h3 style="color: #9E9B29"><strong>CONTACTO</strong></h3>
+                                    <p><strong>Telefono:</strong> @pedido.celularCliente</p>
+                                    <p><strong>Email:</strong>@pedido.emailCliente</p>
+                                </div>
+                                <div class="d-flex justify-content-center mt-4">
+                                    <button type="submit" class="btn btn-block" style="background: #F3743D;color:white;width:50%;">CONFIRMAR PEDIDO</button>
+
+                                </div>
+
+                            </div>
+
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+
+
+
+            <!-- Add Pagination -->
+            <div class="swiper-pagination mt-4"></div>
+            <div class="swiper-button-next"></div>
+            <div class="swiper-button-prev"></div>
+        </div>
+
+
+    </div>
+
+
+
+
+
+    <div class="notificaciones">
+        @foreach (notificacion notificacion in notificaciones)
+        {
+            <div class="d-flex align-items-center notificacion  justify-content-center font-weight-bold text-white" style="@(notificacion.entra ? "background:#9E9B29;border:2px solid #9E9B29" : "background:#FF3F32;border:2px solid #FF3F32")">
+                <strong class="p-1 border border-white rounded-circle mr-1">@(notificacion.entra ? "+" : "-") @notificacion.cantidad </strong>
+                <div class="mx-1"><img src="@notificacion.productoPresentacion.Producto.Foto" style="border-radius:50%" width="30" height="30" /></div>
+                <div class="d-none d-md-block">
+                    <div class="col-md-12 mx-0 px-0">@notificacion.productoPresentacion.Producto.nombre</div>
+                    <div class="col-md-12 mx-0 px-0">@notificacion.productoPresentacion.PresentacionProducto.nombre</div>
+                </div>
+            </div>
+
+        }
+    </div>
+</EditForm>
+
+@code {
+    public Pedido pedido { get; set; } = new Pedido { Domicilio = new Domicilio { Provincia = new Provincia(), Departamento = new Departamento() } };
+    [Parameter] public bool Show { get; set; }
+    [Parameter] public EventCallback toggle { get; set; }
+    [Parameter] public Departamento departamento { get; set; }
+    [Parameter] public ListaPrecios listaVigente { get; set; }
+
+    [Parameter] public List<ListaPrecios> listasHabilitadas { get; set; }
+    public string codigoArea { get; set; }
+    public string celSinQuince { get; set; }
+    public List<notificacion> notificaciones { get; set; } = new List<notificacion>();
+    public List<Vendedor> vendedores { get; set; } = new List<Vendedor>();
+    public bool cargando { get; set; } = false;
+    public ProductoPresentacion producto { get; set; }
+    public int cantidad { get; set; }
+    public List<DateTime> diasQueTrabaja { get; set; }
+    public string celConfirm { get; set; }
+    public bool seRecuperoCarrito { get; set; } = false;
+    [Parameter] public EventCallback callback { get; set; }
+    [Parameter] public Func<int, Task> callbackLogin { get; set; }
+    [Parameter] public bool estaAutentificado { get; set; }
+    public string contraseña { get; set; }
+    public class notificacion
+    {
+        public ProductoPresentacion productoPresentacion { get; set; }
+
+        public int cantidad { get; set; }
+        public bool entra { get; set; }
+        public bool sale { get; set; }
+    }
+
+    protected override async Task OnAfterRenderAsync(bool first)
+    {
+        if (first)
+        {
+
+
+        }
+    }
+    public async Task CrearPedido()
+    {
+
+        bool bandera = false;
+        if (!estaAutentificado)
+        {
+            if (string.IsNullOrEmpty(contraseña) || contraseña.Length < 6)
+            {
+                cargando = false;
+
+                await Alerta("center", "error", "La contraseña tiene que tener más de 6 caracteres");
+
+            }
+            else
+            {
+                bandera = await CrearUsuario();
+            }
+        }
+        else { bandera = true; }
+        if (bandera)
+        {
+            pedido.detallePedido.ForEach(x => x.ProductoPresentacion.Proveedor = null);
+            var response = await repositorio.Post<Pedido>("api/Pedido", pedido);
+
+            if (response.Error)
+            {
+                cargando = false;
+
+                await Alerta("center", "error", response.HttpResponseMessage.Content.ReadAsStringAsync().Result);
+            }
+            else
+            {
+
+                pedido.detallePedido = new List<DetallePedido>();
+                pedido.Vendedor = null;
+                pedido.VendedorId = 0;
+                pedido.total = 0.00M;
+                diasQueTrabaja = null;
+                await toggle.InvokeAsync(new Object());
+                await js.SetInLocalStorage("Carrito", "");
+                await js.SetInLocalStorage("lista", "");
+                this.StateHasChanged();
+                cargando = false;
+                await Alerta("center", "success", $"Se creó correctamente el pedido, se envió a {pedido.emailCliente} el aviso");
+
+            }
+        }
+        if ((!estaAutentificado) && bandera == true)
+        {
+            await LoginUsuario(new UserInfo { username = pedido.emailCliente, Password = contraseña });
+        }
+
+
+
+
+    }
+    public async Task<bool> CrearUsuario()
+    {
+        UserClienteInfo user = new UserClienteInfo
+        {
+            Cliente = new Cliente
+            {
+                apellido = pedido.apellidoCliente,
+                nombre = pedido.nombreCliente,
+                email = pedido.emailCliente,
+                celular = pedido.celularCliente,
+                Domicilio = new Domicilio
+                {
+                    ProvinciaId = pedido.Domicilio.ProvinciaId,
+                    DepartamentoId = pedido.Domicilio.DepartamentoId,
+                    calle = pedido.Domicilio.calle,
+                    numero = pedido.Domicilio.numero,
+                    piso = pedido.Domicilio.piso,
+                    manzana = pedido.Domicilio.manzana,
+                    longitud = pedido.Domicilio.longitud,
+                    latitud = pedido.Domicilio.latitud,
+                }
+            },
+            Password = contraseña
+        };
+
+        var enviarJSON = JsonSerializer.Serialize(user);
+        var enviarContent = new StringContent(enviarJSON, Encoding.UTF8, "application/json");
+        var result = await http.PostAsync("api/Account/CrearUserCliente", enviarContent);
+        if (!result.IsSuccessStatusCode)
+        {
+            string errorMessage = await result.Content.ReadAsStringAsync();
+            errorMessage = errorMessage.Count() > 50 ? "Ocurrió un error" : errorMessage;
+            cargando = false;
+
+            await Alerta("center", "error", $"{errorMessage}");
+
+            return false;
+        }
+        else
+        {
+            pedido.ClienteId = (await http.GetJsonAsync<Cliente>($"api/Cliente/porEmail?email={user.Cliente.email}")).Id;
+            return true;
+        }
+    }
+    public async Task ActualizarParametrosCarrito(Cliente cliente, Provincia provincia, Departamento departamento)
+    {
+        await js.InvokeVoidAsync("initSlider");
+        if (provincia != null)
+        {
+            pedido.Domicilio.Provincia = provincia;
+            pedido.Domicilio.ProvinciaId = provincia.Id;
+
+        }
+        if (departamento != null)
+        {
+            pedido.Domicilio.Departamento = departamento;
+        }
+        if (cliente.Id != 0 && cliente.Id != pedido.ClienteId)
+        {
+            pedido.ClienteId = cliente.Id;
+            pedido.nombreCliente = cliente.nombre;
+            pedido.apellidoCliente = cliente.apellido;
+            pedido.emailCliente = cliente.email;
+            pedido.celularCliente = cliente.celular;
+            pedido.Domicilio.calle = cliente.Domicilio.calle;
+            pedido.Domicilio.numero = cliente.Domicilio.numero;
+            pedido.Domicilio.manzana = cliente.Domicilio.manzana;
+            pedido.Domicilio.codigoPostal = cliente.Domicilio.codigoPostal;
+            pedido.Domicilio.latitud = cliente.Domicilio.latitud;
+            pedido.Domicilio.longitud = cliente.Domicilio.longitud;
+            pedido.Domicilio.ProvinciaId = cliente.Domicilio.ProvinciaId;
+            pedido.Domicilio.DepartamentoId = cliente.Domicilio.DepartamentoId;
+            pedido.Domicilio.Provincia.nombre = cliente.Domicilio.Provincia.nombre;
+            pedido.Domicilio.Departamento.nombre = cliente.Domicilio.Departamento.nombre;
+            codigoArea = pedido.celularCliente.Substring(0, 3);
+            celSinQuince = pedido.celularCliente.Substring(3, 7);
+        }
+
+        if (pedido.Domicilio.Departamento != null && pedido.Vendedor == null)
+        {
+            await ChangeDepartamento(pedido.Domicilio.Departamento);
+        }
+        if (pedido.ClienteId != 0)
+        {
+            await ActualizarMapa();
+
+
+        }
+        await ListarVendedores();
+
+    }
+
+
+
+    public async Task AgregarProducto(ProductoPresentacion prod, int cantidad, int listaId)
+    {
+        int cantidadAnterior = 0;
+        if (pedido.ListaPreciosId != 0 && pedido.ListaPreciosId != listaId && pedido.detallePedido.Count > 0)
+        {
+            toastService.ShowWarning("No puede agregar productos de listas distintas. Para cambiar de lista tienes que vaciar el carrito primero");
+        }
+        else
+        {
+            pedido.ListaPreciosId = listaId;
+            pedido.ListaPrecios = listaVigente;
+            await js.SetInLocalStorage("lista", Convert.ToString(listaId));
+            if (pedido.detallePedido.Where(x => x.ProductoPresentacion.Id == prod.Id).Count() > 0)
+            {
+                cantidadAnterior = pedido.detallePedido.FirstOrDefault(x => x.ProductoPresentacion.Id == prod.Id).cantidad;
+
+                pedido.detallePedido.FirstOrDefault(x => x.ProductoPresentacion.Id == prod.Id).cantidad = cantidad;
+
+            }
+            else
+            {
+
+                decimal precio = listaVigente.DetalleListaPrecios.Single(x => x.ProductoPresentacionId == prod.Id).precioUnitarioFinal;
+
+                pedido.detallePedido.Add(new DetallePedido { ProductoPresentacionId = prod.Id, ProductoPresentacion = prod, cantidad = cantidad, precioUnitario = precio });
+
+            }
+
+
+            CalcularTotal();
+            notificacion notificacion = new notificacion
+            {
+                productoPresentacion = prod,
+                entra = cantidad > cantidadAnterior ? true : false,
+                sale = cantidad < cantidadAnterior ? true : false,
+                cantidad = Math.Abs(cantidadAnterior - cantidad)
+            };
+
+
+            notificaciones.Add(notificacion);
+            LimpiarNotifiacion(notificacion);
+            await carritoInLocalStore();
+            //await mostrarNotificacion();
+        }
+    }
+    public async Task Alerta(string posicion = "top-end", string icono = "success", string mensaje = "Se creó el producto con éxito")
+    {
+        await js.InvokeAsync<object>("alerta", posicion, icono, mensaje);
+    }
+    public async Task AgregarProductoLocalStore(ProductoPresentacion prod, int cantidad, int listaId)
+    {
+
+        pedido.ListaPreciosId = listaId;
+        if (pedido.detallePedido.Where(x => x.ProductoPresentacion.Id == prod.Id).Count() > 0)
+        {
+            pedido.detallePedido.FirstOrDefault(x => x.ProductoPresentacion.Id == prod.Id).cantidad = cantidad;
+        }
+        else
+        {
+
+
+            decimal precio = listaVigente.DetalleListaPrecios.Single(x => x.ProductoPresentacionId == prod.Id).precioUnitarioFinal;
+            pedido.detallePedido.Add(new DetallePedido { ProductoPresentacionId = prod.Id, ProductoPresentacion = prod, cantidad = cantidad, precioUnitario = precio });
+
+        }
+        CalcularTotal();
+        this.producto = prod;
+        this.cantidad = cantidad;
+    }
+
+    public async Task carritoInLocalStore()
+    {
+        string carritoLocalStore = "";
+
+        foreach (DetallePedido detalle in pedido.detallePedido)
+        {
+
+            carritoLocalStore += $"{detalle.ProductoPresentacion.Id}-{detalle.cantidad},";
+        }
+        carritoLocalStore = carritoLocalStore.TrimEnd(',');
+        await js.SetInLocalStorage("Carrito", carritoLocalStore);
+    }
+
+    public async Task RecuperarCarritoLocalStore()
+    {
+        string carrito = await js.GetFromLocalStorage("Carrito");
+        string lista = await js.GetFromLocalStorage("lista");
+
+        if (!string.IsNullOrWhiteSpace(carrito) && !string.IsNullOrWhiteSpace(lista))
+        {
+            if (listaVigente.Id == (Convert.ToInt32(lista)))
+            {
+                var elemCarrito = carrito.Split(',');
+
+                foreach (string producto in elemCarrito)
+                {
+                    var detalle = producto.Split('-');
+                    try
+                    {
+                        ProductoPresentacion productoPresentacion = listaVigente.DetalleListaPrecios.Single(x => x.ProductoPresentacionId == Convert.ToInt32(detalle[0])).ProductoPresentacion;
+                        await AgregarProductoLocalStore(productoPresentacion, Convert.ToInt32(detalle[1]), Convert.ToInt32(lista));
+
+                    }
+                    catch (Exception)
+                    {
+                        toastService.ShowWarning("Algunos productos que estaban en el carrito ya no existen en esta lista");
+                    }
+                }
+            }
+            else
+            {
+                toastService.ShowWarning("La lista de precios con la que estaba cargada tu carrito no está habilitado para este usuario/localidad, por favor ingresa con tu usuario.");
+            }
+        }
+        await callback.InvokeAsync(new Object());
+
+    }
+
+
+
+    private async Task LoginUsuario(UserInfo userInfo)
+    {
+        if (userInfo.username != "" && userInfo.username != null && userInfo.Password != "" && userInfo.Password != null)
+        {
+            try
+            {
+                var enviarJSON = JsonSerializer.Serialize(userInfo);
+                var enviarContent = new StringContent(enviarJSON, Encoding.UTF8, "application/json");
+
+                var result = await http.PostAsync($"api/account/LoginECommerce/", enviarContent);
+                if (result.IsSuccessStatusCode)
+                {
+                    var response = await DeserializarRespuesta<UserClienteInfo>(result, new JsonSerializerOptions() { PropertyNameCaseInsensitive = true });
+                    await loginService.Login(response.userToken.Token);
+                    await callbackLogin.Invoke(response.ClienteId ?? 0);
+                }
+
+                else
+                {
+                    string errorMessage = await result.Content.ReadAsStringAsync();
+                    await Alerta("center", "error", errorMessage);
+
+                }
+            }
+            catch (Exception ex)
+            {
+            }
+
+
+        }
+        else
+        {
+            toastService.ShowError("Usuario o contraseña incorrectos");
+        }
+    }
+    private async Task<UserInfo> DeserializarRespuesta<UserClienteInfo>(HttpResponseMessage httpResponse, JsonSerializerOptions jsonSerializerOptions)
+    {
+        var responseString = await httpResponse.Content.ReadAsStringAsync();
+        return JsonSerializer.Deserialize<UserInfo>(responseString, jsonSerializerOptions);
+    }
+
+    public async Task ChangeDepartamento(Departamento departamento)
+    {
+        pedido.Domicilio.Departamento = departamento;
+        pedido.Domicilio.DepartamentoId = departamento.Id;
+        pedido.Vendedor = null;
+        pedido.fechaEntrega = new DateTime();
+
+        await ListarVendedores();
+    }
+    public async Task ListarVendedores()
+    {
+        Console.WriteLine($"Listando Vendedores DepartamentoId{pedido.Domicilio.DepartamentoId}");
+        if (pedido.Domicilio.DepartamentoId != 0 && pedido.Domicilio.DepartamentoId != null)
+        {
+            vendedores = await http.GetJsonAsync<List<Vendedor>>($"api/Vendedor/VendedorEcommerce?departamendoId={pedido.Domicilio.DepartamentoId}");
+            if (vendedores.Count > 0)
+            {
+                await SelecVendedor(vendedores[0]);
+            }
+
+        }
+
+
+    }
+    public async Task SelecVendedor(Vendedor vendedor)
+    {
+        pedido.Vendedor = vendedor;
+        pedido.VendedorId = vendedor.Id;
+        diasQueTrabaja = await http.GetJsonAsync<List<DateTime>>($"api/VendedorDepartamento/DiasQueTrabaja?vendedorId={pedido.Vendedor.Id}&departamentoId={pedido.Domicilio.DepartamentoId}");
+        pedido.fechaEntrega = new DateTime();
+
+    }
+    public async Task ActualizarMapa()
+    {
+        if (pedido.Domicilio.numero != 0 && !string.IsNullOrWhiteSpace(pedido.Domicilio.calle) && pedido.Domicilio.Provincia != null && pedido.Domicilio.Departamento != null && !string.IsNullOrWhiteSpace(pedido.Domicilio.Departamento.nombre) && !string.IsNullOrWhiteSpace(pedido.Domicilio.Provincia.nombre))
+        {
+            List<decimal> coords = await js.InvokeAsync<List<decimal>>("buscarCoordenadas", $"{pedido.Domicilio.numero}+{pedido.Domicilio.calle}+{pedido.Domicilio.Departamento.nombre}+{pedido.Domicilio.Provincia.nombre}+Argentina", "mapaCarrito");
+            pedido.Domicilio.latitud = coords[0];
+            pedido.Domicilio.longitud = coords[1];
+
+        }
+
+    }
+
+    public void CalcularTotal()
+    {
+        pedido.total = pedido.detallePedido.Sum(x => x.precioUnitario * x.cantidad);
+    }
+
+    public async void LimpiarNotifiacion(notificacion notificacion)
+    {
+        await Task.Delay(TimeSpan.FromSeconds(4)).ContinueWith(x =>
+        {
+            notificaciones.Remove(notificacion);
+            this.StateHasChanged();
+        });
+
+    }
+
+    public async Task removeFromProducCard(ProductoPresentacion producto)
+    {
+        int cantidad = pedido.detallePedido.Single(x => x.ProductoPresentacionId == producto.Id).cantidad;
+        pedido.detallePedido.Remove(pedido.detallePedido.Single(x => x.ProductoPresentacionId == producto.Id));
+        await carritoInLocalStore();
+        CalcularTotal();
+
+        notificacion notificacion = new notificacion
+        {
+            productoPresentacion = producto,
+            entra = false,
+            sale = true,
+            cantidad = Math.Abs(cantidad)
+        };
+
+
+        notificaciones.Add(notificacion);
+        LimpiarNotifiacion(notificacion);
+
+    }
+}

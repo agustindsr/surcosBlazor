@@ -1,0 +1,82 @@
+﻿@inject HttpClient http
+@inject IJSRuntime js
+@inject IToastService toastService
+@attribute [Authorize(Roles = "Admin, Configuracion")]
+
+@if (cargando)
+{
+    <Loading></Loading>}
+<EditForm Model="@departamento" OnValidSubmit="@(async()=>{cargando = true; await Confirmar();})">
+    <DataAnnotationsValidator />
+    <div class="form-group">
+        <label>Nombre</label>
+        <input class="form-control" @bind="@departamento.nombre" />
+        <ValidationMessage For="(()=>departamento.nombre)"></ValidationMessage>
+
+    </div>
+    <div class="form-group">
+        <label>E-Commerce</label>
+        <div class="d-flex"> <input type="checkbox" class="form-control" @bind="@departamento.eCommerce" /><span>@(departamento.eCommerce ? " On" : " Off")</span></div>
+    </div>
+    <button class="btn-outline-olive btn-block" type="submit">@accion</button>
+</EditForm>
+
+@code {
+    [Parameter]
+    public Departamento departamento { get; set; }
+    [Parameter]
+    public Provincia provincia { get; set; }
+    [Parameter]
+    public string accion { get; set; }
+    [Parameter]
+    public EventCallback callback { get; set; }
+    public bool cargando { get; set; }
+    public async Task Confirmar()
+    {
+        try
+        {
+            if (accion == "Crear")
+            {
+                departamento.ProvinciaId = provincia.Id;
+                await http.PostJsonAsync($"api/departamento", departamento);
+                cargando = false;
+                toastService.ShowSuccess($"Se creó correctamento el departamento {departamento.nombre}");
+
+            }
+            if (accion == "Editar")
+            {
+                await http.PutJsonAsync($"api/departamento/{departamento.Id}", departamento);
+                cargando = false;
+
+                toastService.ShowSuccess($"Se editó correctamento el departamento {departamento.nombre}");
+
+            }
+        }
+        catch (Exception ex)
+        {
+            cargando = false;
+
+            toastService.ShowError($"Ocurrio un error: {ex.Message}");
+
+        }
+
+
+        await CloseAllModals();
+        await callback.InvokeAsync(new Object());
+        await NotifySuccess();
+
+    }
+
+    public async Task CloseAllModals()
+    {
+
+        await js.InvokeAsync<object>("CloseAllModals");
+    }
+
+
+    public async Task NotifySuccess()
+    {
+
+        toastService.ShowSuccess("Se creó la localidad correctamente");
+    }
+}

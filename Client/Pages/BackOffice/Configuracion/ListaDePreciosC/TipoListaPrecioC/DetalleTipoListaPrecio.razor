@@ -1,0 +1,194 @@
+﻿@layout BackOfficeLayout
+@attribute [Authorize(Roles = "Admin, Configuracion")]
+
+@page "/BackOffice/Configuraciones/TipoListaPrecio/{Id:int}"
+@inject HttpClient http
+@inject NavigationManager uri
+@inject IJSRuntime js
+@using SurcosBlazor.Client.Repositorio
+@inject IRepositorio  repositorio
+
+
+<nav aria-label="breadcrumb">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item" @onclick="@(()=>uri.NavigateTo("/BackOffice/Configuraciones"))">Configuraciones</li>
+        <li class="breadcrumb-item active" aria-current="page" @onclick="@(()=>uri.NavigateTo("/BackOffice/Configuraciones/TipoListaPrecio"))">Detalle Tipo Lista Precios</li>
+    </ol>
+</nav>
+
+<div class="border-bottom border-secondary my-2">
+    <h2 class="">Tipo Lista Precio</h2>
+</div>
+
+<BotoneraAcciones Context="tipoListaPrecioContext"
+                  Titem="tipoListaPrecio"
+                  ElementoSeleccionado="((tipoListaPrecio) => ElementoSeleccionado(tipoListaPrecio))"
+                  editar="true"
+                  eliminar="true" eliminarFunc='(async () => { EliminarTipoListaPrecio(tipoListaPrecio); uri.NavigateTo("Configuraciones/ListadoTipoListaPrecios"); })'>
+    <modalContentEditar>
+        <TipoListaPrecioForm accion="Editar" tipoListaPrecio="tipoListaPrecio" callback="(()=>this.StateHasChanged())"></TipoListaPrecioForm>
+    </modalContentEditar>
+
+</BotoneraAcciones>
+
+
+<div class="departamentos mt-4">
+    @if (tipoListaPrecio == null)
+    {
+        <h2> <strong>No se ha encontrado la tipoListaPrecio</strong></h2>
+    }
+    else
+    {
+
+        <div class="detalleEntidad my-4 bg-light p-4">
+
+            <div>
+                <h2 class="text-center"> <strong><span class="">@tipoListaPrecio.nombre</span></strong></h2>
+            </div>
+
+        </div>
+
+        //Provincias
+        <div>
+            <div class="border-bottom border-secondary mt-4 mb-2">
+                <h3 class="">Provincias</h3>
+
+            </div>
+            <BotoneraAcciones Context="tipoListaPrecioProvincia"
+                              Titem="tipoListaPrecioProvincia"
+                              agregar="true"
+                              modalIdCrear="modalIdCrearProvincia" modalIdEliminar="modalIdEliminarProvincia">
+
+                <modalContentAgregar>
+                    <TipoListaPrecioProvinciaForm accion="Crear"
+                                                  tipoListaPrecio="tipoListaPrecio"
+                                                  tipoListaPrecioProvincia="new TipoListaPrecioProvincia()"
+                                                  callback="(async() =>{await tablaGenericaProvincia.ListarItemsApi(); this.StateHasChanged(); })">
+                    </TipoListaPrecioProvinciaForm>
+                </modalContentAgregar>
+            </BotoneraAcciones>
+            <TablaGenerica @ref="tablaGenericaProvincia" T="TipoListaPrecioProvincia"
+                           elementosAmostrar='new List<string[]> { new string[3]{"Id", "Id","Texto" },new string[3]{ "Provincia","Provincia.nombre","Text"}}'
+                           acciones="true"
+                           consultaApi='new TablaGenerica<TipoListaPrecioProvincia>.ConsultarApi {  baseUrl=$"api/TipoListaPrecioProvincia?tipoListaPrecioId={tipoListaPrecio.Id}&", consultaApi=true, paginacion=true, cantidadDeRegistrosAMostrar=15}'
+                           selectTitem="((TipoListaPrecioProvincia tipoListaPrecioProvincia)=>TipoListaPrecioProvinciaSeleccionado(tipoListaPrecioProvincia))"
+                           eliminar="true"
+                           eliminarFunc="@(async()=>await EliminarListaTipoPrecioProvincia(tipoListaPrecioProvincia))" modalIdEliminar="modalIdEliminarProvinciaTablaGenerica">
+            </TablaGenerica>
+
+        </div>
+        <div>
+            <div class="border-bottom border-secondary mt-4 mb-1">
+                <h3 class="">Categoria Cliente</h3>
+            </div>
+            <BotoneraAcciones Context="tipoListaPrecioCategoriaCliente"
+                              Titem="tipoListaPreciocategoriaCliente"
+                              agregar="true" modalIdCrear="modalIdCrearCategoria">
+
+                <modalContentAgregar>
+                    <TipoListaPrecioCategoriaForm accion="Crear"
+                                                  tipoListaPrecio="tipoListaPrecio"
+                                                  tipoListaPrecioCategoriaCliente="new TipoListaPrecioCategoriaCliente()"
+                                                  callback="(async() =>{await tablaGenericaCategoria.ListarItemsApi(); this.StateHasChanged(); })">
+                    </TipoListaPrecioCategoriaForm>
+                </modalContentAgregar>
+            </BotoneraAcciones>
+
+
+
+            <TablaGenerica @ref="tablaGenericaCategoria" T="TipoListaPrecioCategoriaCliente"
+                           elementosAmostrar='new List<string[]> { new string[3]{"Id", "Id","Texto" },new string[3]{ "Categoria","CategoriaCliente.nombre","Text"}}'
+                           acciones="true"
+                           consultaApi='new TablaGenerica<TipoListaPrecioCategoriaCliente>.ConsultarApi {  baseUrl=$"api/TipoListaPrecioCategoriaCliente?tipoListaPrecioId={tipoListaPrecio.Id}&", consultaApi=true, paginacion=true, cantidadDeRegistrosAMostrar=15}'
+                           selectTitem="((TipoListaPrecioCategoriaCliente tipoListaPrecioCategoriaCliente)=>TipoListaPrecioCategoriaClienteSeleccionado(tipoListaPrecioCategoriaCliente))"
+                           eliminar="true"
+                           eliminarFunc="@(async()=>await EliminarListaTipoPrecioCategoriaCliente(tipoListaPreciocategoriaCliente))" modalIdEliminar="modalIdEliminarCategoriaTablaGenerica">
+            </TablaGenerica>
+        </div>
+    }
+
+</div>
+
+
+
+@code {
+    [Parameter]
+    public int Id { get; set; } = 0;
+    public TipoListaPrecio tipoListaPrecio { get; set; }
+    public TipoListaPrecioCategoriaCliente tipoListaPreciocategoriaCliente { get; set; }
+    public TipoListaPrecioProvincia tipoListaPrecioProvincia { get; set; }
+
+    public TablaGenerica<TipoListaPrecioCategoriaCliente> tablaGenericaCategoria { get; set; }
+    public TablaGenerica<TipoListaPrecioProvincia> tablaGenericaProvincia { get; set; }
+
+    protected override async Task OnInitializedAsync()
+    {
+        await ListarTipoListaPrecio();
+    }
+
+    public async Task ListarTipoListaPrecio()
+    {
+        var responseHttp = await repositorio.Get<TipoListaPrecio>($"api/tipoListaPrecio/{Id}");
+        if (!responseHttp.Error)
+        {
+            tipoListaPrecio = responseHttp.Response;
+        }
+        this.StateHasChanged();
+    }
+
+
+
+    public async Task EliminarTipoListaPrecio(TipoListaPrecio tipoListaPrecio)
+    {
+        await http.DeleteAsync($"api/tipoListaPrecio/{tipoListaPrecio.Id}");
+        this.tipoListaPrecio = null;
+
+    }
+
+
+
+
+    public TipoListaPrecio ElementoSeleccionado(TipoListaPrecio prov)
+    {
+
+        tipoListaPrecio = prov;
+        this.StateHasChanged();
+        return tipoListaPrecio;
+    }
+
+    //metodos para la tabla cateogiras
+    public async Task EliminarListaTipoPrecioCategoriaCliente(TipoListaPrecioCategoriaCliente tipoListaPrecioCategoriaCliente)
+    {
+
+        await http.DeleteAsync($"api/TipoListaPrecioCategoriaCliente/{tipoListaPrecioCategoriaCliente.Id}");
+        await ListarTipoListaPrecio();
+
+    }
+
+    public TipoListaPrecioCategoriaCliente TipoListaPrecioCategoriaClienteSeleccionado(TipoListaPrecioCategoriaCliente tipoListaPreciocategoriaCliente)
+    {
+        this.tipoListaPreciocategoriaCliente = tipoListaPreciocategoriaCliente;
+        return tipoListaPreciocategoriaCliente;
+    }
+    //metodos para la tabla de provincia
+    public async Task EliminarListaTipoPrecioProvincia(TipoListaPrecioProvincia tipoListaPrecioProvincia)
+    {
+
+        await http.DeleteAsync($"api/TipoListaPrecioProvincia/{tipoListaPrecioProvincia.Id}");
+        await ListarTipoListaPrecio();
+
+    }
+
+
+
+
+
+    public TipoListaPrecioProvincia TipoListaPrecioProvinciaSeleccionado(TipoListaPrecioProvincia tipoListaPrecioProvincia)
+    {
+        this.tipoListaPrecioProvincia = tipoListaPrecioProvincia;
+        return tipoListaPrecioProvincia;
+    }
+
+
+
+}

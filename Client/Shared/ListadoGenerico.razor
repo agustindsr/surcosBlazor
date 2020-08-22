@@ -1,0 +1,44 @@
+﻿@typeparam T
+<style>
+</style>
+
+@if (listado == null)
+{
+<div class="d-flex justify-content-center">
+    <div class="loadingio-spinner-gear-sf2yw67lypl">
+        <div class="ldio-2bbk9jzsuoo">
+            <div><div></div><div></div><div></div><div></div><div></div><div></div><div></div><div></div></div>
+        </div>
+    </div>
+</div>
+
+}
+else if (listado.Count == 0)
+{
+    if (NoHayRegistros != null)
+
+    {
+        @NoHayRegistros
+
+    }
+    else
+    {
+        <p><strong>No hay registros para mostrar</strong></p>
+    }
+}
+else
+{
+    @HayRegistros
+}
+
+@code
+{
+    [Parameter] public List<T> listado { get; set; }
+    [Parameter]
+
+    public RenderFragment HayRegistros { get; set; }
+    [Parameter]
+    public RenderFragment NoHayRegistros { get; set; }
+
+}
+

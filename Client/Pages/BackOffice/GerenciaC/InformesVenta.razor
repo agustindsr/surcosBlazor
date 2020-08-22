@@ -1,0 +1,198 @@
+﻿@inject IJSRuntime js
+@inject AuthenticationStateProvider authStateProvider
+@inject HttpClient http
+@using SurcosBlazor.Shared.Entidades.Informes.InformesVentas
+
+<div class="bg-light mb-4 col-md-12 mx-0 px-0 py-3">
+    <div class="col-md-12 row d-flex mx-0 px-0">
+        <div class="col-md-2 mx-2 form-group">
+            <label>Desde</label>
+            <input class="form-control " value="@fechaDesde.ToString("yyyy-MM-dd")" type="date" @onchange="@((ChangeEventArgs e)=> { fechaDesde = Convert.ToDateTime(e.Value); this.StateHasChanged(); })" />
+
+        </div>
+        <div class="col-md-2 mx-2  form-group">
+            <label>Hasta</label>
+            <input class="form-control" value="@fechaHasta.ToString("yyyy-MM-dd")" type="date" @onchange="@((ChangeEventArgs e)=> { fechaHasta = Convert.ToDateTime(e.Value);this.StateHasChanged(); })" />
+
+        </div>
+        <div class="col-md-3 mx-2">
+            <div class="col-md-12 row mx-0 px-0 align-items-center">
+                <div class="col-md-10">
+                    <SelectGenerico Context="vendedor" Label="Vendedor" TList="vendedores" TItemActual="vendedor" SelectItem="(Vendedor vendedor) => { this.vendedor = vendedor; }" MsjDefault="- Todos los vendedores -">
+                        <TTemplate>@vendedor.nombre</TTemplate>
+                    </SelectGenerico>
+                </div>
+                <div class="col-md-1">
+                    @if (vendedor != null)
+                    {
+                        <div><i class="fas fa-times text-danger" style="cursor:pointer" @onclick="@(()=>this.vendedor = null)"></i></div>
+
+                    }
+                </div>
+            </div>
+
+
+        </div>
+        <div class="col-md-3 mx-2">
+            <div class="col-md-12 row mx-0 px-0 align-items-center">
+                <div class="col-md-10">
+                    <SelectGenerico Context="provincia" Label="Provincia" TList="provincias" TItemActual="provincia" SelectItem="(Provincia provincia) => { this.provincia = provincia; }" MsjDefault="- Todas las provincias -">
+                        <TTemplate>@provincia.nombre</TTemplate>
+                    </SelectGenerico>
+                </div>
+                <div class="col-md-1">
+                    @if (provincia != null)
+                    {
+                        <div><i class="fas fa-times text-danger" style="cursor:pointer" @onclick="@(()=>this.provincia = null)"></i></div>
+
+                    }
+                </div>
+            </div>
+
+
+
+        </div>
+
+
+    </div>
+    <button class="btn btn-info mx-0 btn-block my-2" @onclick="armarInforme">INICIAR</button>
+
+
+
+</div>
+
+<div class="col-md-12 row mx-0 px-0">
+
+    <div class="col-md-5">
+        @if (informeVentas != null)
+        {
+            <h3>PEDIDOS</h3>
+            <table class="table table-sm">
+                <thead>
+                    <tr class="bg-dark text-white">
+                        <th>PENDIENTES</th>
+                        <th>CONFIRMADOS</th>
+                        <th>ENTREGADOS</th>
+                        <th>CANCELADOS</th>
+                    </tr>
+                    <tr>
+                        <th>@informeVentas.cantidadPEDPEN</th>
+                        <th>@informeVentas.cantidadPEDCON</th>
+                        <th>@informeVentas.cantidadPEDENT</th>
+                        <th>@informeVentas.cantidadPEDANU</th>
+
+                    </tr>
+                </thead>
+            </table>
+            <h3>Pedidos por vendedor</h3>
+        }
+        <div id="pedidoPorVendededor" class="" style="height:500px; width:100%"></div>
+    </div>
+    <div class="col-md-7">
+        @if (informeVentas != null)
+        {
+            <h3>COMPROBANTES</h3>
+
+            <table class="table table-sm">
+                <thead>
+                    <tr class="bg-dark text-white">
+                        <th>TIPO</th>
+                        <th>EMITIDOS</th>
+                        <th>TOTAL ($)</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td>FACTURA</td>
+                        <td>@informeVentas.cantidadFAC</td>
+                        <td>$@informeVentas.totalFAC</td>
+                    </tr>
+                    <tr>
+                        <td>NOTA DEB.</td>
+                        <td>@informeVentas.cantidadND</td>
+                        <td>$@informeVentas.totalND</td>
+                    </tr>
+                    <tr>
+                        <td>NOTA CRE.</td>
+                        <td>@informeVentas.cantidadNC</td>
+                        <td>$@informeVentas.totalNC</td>
+                    </tr>
+                    <tr class="bg-dark text-white">
+                        <th colspan="2"></th>
+                        <th>TOTAL: $@(informeVentas.totalFAC+ informeVentas.totalND- informeVentas.totalNC)</th>
+                    </tr>
+                </tbody>
+
+            </table>
+
+            <h3>Ventas por Localidad</h3>
+        }
+        <div id="ventasPorZona" class="" style="height:500px; width:100%"></div>
+
+    </div>
+
+    <div class="col-md-12 row">
+        <div class="col-md-6">
+            <h3>Total Vendedido por Lista Precios</h3>
+
+            <div id="totalVentasPorLista" class="" style="height:500px; width:100%"></div>
+
+        </div>
+        <div class="col-md-6">
+            <h3>Total Ganado por Lista Precios</h3>
+
+            <div id="totalGanadoPorLista" class="" style="height:500px; width:100%"></div>
+
+        </div>
+    </div>
+    <div class="col-md-12">
+        <h3>Evolución Ventas por Lista Precios</h3>
+
+        <div id="ventasPorLista" class="" style="height:500px; width:100%"></div>
+
+    </div>
+    <div class="col-md-12">
+        <h3>Evolución Ganancias por Lista Precios</h3>
+
+        <div id="gananciasPorLista" class="" style="height:500px; width:100%"></div>
+
+    </div>
+</div>
+
+    @code {
+        public string userName { get; set; }
+        public DateTime fechaDesde { get; set; } = DateTime.Now.AddDays((-1 * DateTime.Now.Day) + 1);
+        public DateTime fechaHasta { get; set; } = DateTime.Now;
+        public List<Vendedor> vendedores { get; set; } = new List<Vendedor>();
+        public List<Provincia> provincias { get; set; } = new List<Provincia>();
+
+        public InformeGeneralVentas informeVentas { get; set; }
+        public Provincia provincia { get; set; }
+        public Vendedor vendedor { get; set; }
+        protected override async Task OnInitializedAsync()
+        {
+
+            var authState = await authStateProvider.GetAuthenticationStateAsync();
+            userName = authState.User.Identity.Name;
+            vendedores = await http.GetJsonAsync<List<Vendedor>>($"api/vendedor");
+            provincias = await http.GetJsonAsync<List<Provincia>>($"api/provincia");
+
+        }
+
+        public async Task armarInforme()
+        {
+            int provinciaId = provincia == null ? 0 : provincia.Id;
+            int vendedorId = vendedor == null ? 0 : vendedor.Id;
+
+            informeVentas = await http.GetJsonAsync<InformeGeneralVentas>($"api/pedido/InformeGeneralVentasVenta?userName={userName}&fechaDesde={fechaDesde.ToString("MM/dd/yyyy")}&fechaHasta={fechaHasta.ToString("MM/dd/yyyy")}&provinciaId={provinciaId}&vendedorId={vendedorId}");
+            await js.InvokeVoidAsync("graficoVendedores", informeVentas.InformePedidosVendedores, "pedidoPorVendededor");
+            await js.InvokeVoidAsync("ventasPorZona", informeVentas.InformeVentasPorLocalidad.OrderBy(x => x.provincia).ThenBy(x => x.localidad).ThenByDescending(x => x.total), "ventasPorZona");
+            await js.InvokeVoidAsync("graficoGananciaPorListaPrecios", informeVentas.informeGananciasPorListaPrecios, "gananciasPorLista");
+            await js.InvokeVoidAsync("graficoGananciaPorListaPrecios", informeVentas.informeVentasPorListaPrecios, "ventasPorLista");
+            await js.InvokeVoidAsync("gananciasPorLista", informeVentas.informeTotalVentasPorListaPrecios, "totalVentasPorLista");
+            await js.InvokeVoidAsync("gananciasPorLista", informeVentas.informeTotalGanancias, "totalGanadoPorLista");
+
+
+        }
+
+    }

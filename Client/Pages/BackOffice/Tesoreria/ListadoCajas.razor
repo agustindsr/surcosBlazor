@@ -1,0 +1,66 @@
+﻿@layout BackOfficeLayout
+@attribute [Authorize(Roles = "Admin, Tesoreria")]
+
+@page "/BackOffice/Tesoreria/ListadoCajas"
+@inject HttpClient http
+@inject NavigationManager uri
+<nav aria-label="breadcrumb">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item" @onclick="@(()=>uri.NavigateTo("/BackOffice/Tesoreria"))">Tesoreria</li>
+        <li class="breadcrumb-item active" aria-current="page" @onclick="@(()=>uri.NavigateTo("/BackOffice/Tesoreria/ListadoCajas"))">Listado Cajas</li>
+    </ol>
+</nav>
+<div>
+    <div class="border-bottom border-secondary my-2">
+        <h2 class="">Cajas</h2>
+    </div>
+    <BotoneraAcciones T="Caja" agregar="true">
+        <modalContentAgregar>
+            <CajaForm caja="new Caja()" callback="(async() => {this.StateHasChanged();await tablaGenerica.ListarItemsApi(); })"
+                      accion="Crear">
+            </CajaForm>
+        </modalContentAgregar>
+    </BotoneraAcciones>
+    <TablaGenerica @ref="tablaGenerica"
+                   elementosAmostrar='new List<string[]> {
+                                new string[3]{"Id", "Id","Texto" },
+                                new string[3]{"Caja", "nombre","Texto" },
+                                new string[3]{ "Saldo","saldo","Text" }}'
+                   acciones="true"
+                   detalle="true"
+                   detalleUrl="/BackOffice/Tesoreria/MovimientosCaja"
+                   consultaApi='new TablaGenerica<Caja>.ConsultarApi {  baseUrl=$"api/caja?", consultaApi=true, paginacion=true, cantidadDeRegistrosAMostrar=25}'
+                   editar="true"
+                   selectTitem="((Caja caja)=>ElementoSeleccionado(caja))"
+                   eliminar="true"
+                   eliminarFunc="@(async ()=>await EliminarCaja(caja))">
+
+        <modalContentEditar>
+            <CajaForm caja="caja" callback="(()=>this.StateHasChanged())"
+                      accion="Editar">
+            </CajaForm>
+        </modalContentEditar>
+
+    </TablaGenerica>
+</div>
+@code {
+    public Caja caja { get; set; }
+    public TablaGenerica<Caja> tablaGenerica { get; set; }
+
+
+    public async Task EliminarCaja(Caja caja)
+    {
+        await http.DeleteAsync($"api/caja/{caja.Id}");
+        this.caja = null;
+
+    }
+
+
+    public Caja ElementoSeleccionado(Caja caja)
+    {
+
+        this.caja = caja;
+        this.StateHasChanged();
+        return caja;
+    }
+}

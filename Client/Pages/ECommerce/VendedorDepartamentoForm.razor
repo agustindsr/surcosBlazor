@@ -1,0 +1,97 @@
+﻿@inject IRepositorio repostorio
+@inject IJSRuntime js
+@inject HttpClient http
+@inject IToastService toastService
+@if (vendedorDepartamento != null)
+{
+    <EditForm Model="vendedorDepartamento" OnValidSubmit="Confirmar" OnInvalidSubmit='(() => Console.WriteLine("invalid"))'>
+        <div>
+            <div class="border-bottom border-secondary my-2 bg-light">
+                <h4 class="">Departamento</h4>
+            </div>
+           
+                    <span><strong>Departamento: </strong>@(vendedorDepartamento.departamento.Provincia.nombre), @(vendedorDepartamento.departamento.nombre)</span>
+                
+          
+        </div>
+        <div class="border-bottom border-secondary my-2 bg-light">
+            <h4 class="">Dias de entrega</h4>
+        </div>
+        <div class="my-2">
+            <div class="d-flex col-md-12 col-xs-12 pt-2">
+                <h4 class="col-md-2"> <strong>Lunes: </strong></h4><input type="checkbox" @bind="@vendedorDepartamento.entregaLunes" class="">@(vendedorDepartamento.entregaLunes ? "On" : "Off")
+            </div>
+            <div class="d-flex col-md-12 col-xs-12 pt-2">
+                <h4 class="col-md-2"> <strong>Martes: </strong></h4><input type="checkbox" @bind="@vendedorDepartamento.entregaMartes" class="">@(vendedorDepartamento.entregaMartes ? "On" : "Off")
+            </div>
+            <div class="d-flex col-md-12 col-xs-12 pt-2">
+                <h4 class="col-md-2"> <strong>Miercoles: </strong></h4><input type="checkbox" @bind="@vendedorDepartamento.entregaMiercoles" class="">@(vendedorDepartamento.entregaMiercoles ? "On" : "Off")
+            </div>
+            <div class="d-flex col-md-12 col-xs-12 pt-2">
+                <h4 class="col-md-2"> <strong>Jueves: </strong></h4><input type="checkbox" @bind="@vendedorDepartamento.entregaJueves" class="">@(vendedorDepartamento.entregaJueves ? "On" : "Off")
+            </div>
+            <div class="d-flex col-md-12 col-xs-12 pt-2">
+                <h4 class="col-md-2"> <strong>Viernes: </strong></h4><input type="checkbox" @bind="@vendedorDepartamento.entregaViernes" class="">@(vendedorDepartamento.entregaViernes ? "On" : "Off")
+            </div>
+            <div class="d-flex col-md-12 col-xs-12 pt-2">
+                <h4 class="col-md-2"> <strong>Sabado: </strong></h4><input type="checkbox" @bind="@vendedorDepartamento.entregaSabado" class="">@(vendedorDepartamento.entregaSabado ? "On" : "Off")
+            </div>
+            <div class="d-flex col-md-12 col-xs-12 pt-2">
+                <h4 class="col-md-2"> <strong>Domingo: </strong></h4><input type="checkbox" @bind="@vendedorDepartamento.entregaDomingo" class="">@(vendedorDepartamento.entregaDomingo ? "On" : "Off")
+            </div>
+        </div>
+
+        <button type="submit" class="btn btn-sm btn-outline-dark btn-block">Editar</button>
+    </EditForm>
+}
+@code {
+    [Parameter] public VendedorDepartamento vendedorDepartamento { get; set; }
+    [Parameter] public Vendedor vendedor { get; set; }
+    [Parameter] public EventCallback callback { get; set; }
+
+
+    public Departamento departamento { get; set; }
+
+
+    public async Task<List<Departamento>> searchMethodDeparmantos(string searchText)
+    {
+        var HttpResponse = await repostorio.Get<List<Departamento>>($"/api/departamento?filtro={searchText}&cantidadDeRegistros=10&includeProvincia=True");
+        return HttpResponse.Response;
+    }
+
+    public Departamento DepartamentoSeleccionado(Departamento departamento)
+    {
+        this.vendedorDepartamento.departamento = departamento;
+        this.StateHasChanged();
+        return departamento;
+    }
+
+    public async Task Confirmar()
+    {
+        try
+        {
+           
+                await http.PutJsonAsync($"api/vendedorDepartamento/{vendedorDepartamento.Id}", vendedorDepartamento);
+                toastService.ShowSuccess($"Se editó correctamente");
+
+            
+        }
+        catch (Exception ex)
+        {
+
+            toastService.ShowError($"Ocurrio un error {ex.Message}");
+            ;
+        }
+
+
+        await CloseAllModals();
+
+        await callback.InvokeAsync(new Object());
+
+    }
+    public async Task CloseAllModals()
+    {
+
+        await js.InvokeAsync<object>("CloseAllModals");
+    }
+}

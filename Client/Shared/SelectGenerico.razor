@@ -1,0 +1,144 @@
+﻿@typeparam T
+
+<style>
+    .customSelect {
+        display: inline-flex;
+        color: black;
+        position: relative;
+        cursor: pointer;
+        min-width: 200px;
+        border: none;
+        padding: 0;
+        margin: 0;
+        background: transparent;
+        outline:none;
+    }
+        .customSelect:focus {
+            outline: none;
+            
+        }
+            .customSelect:focus .seleccionado {
+                outline: 0;
+                box-shadow: 0 0 0 2px #56A4E8;
+            }
+            .customSelect .seleccionado {
+                border: 1px solid #262626;
+                position: relative;
+                padding: 5px;
+                border-radius: 3px;
+                min-width: 200px;
+                display: flex;
+                justify-content: space-between;
+            }
+
+        .customSelect .opciones {
+            display: block;
+            position: absolute;
+            top: 110%;
+            left: 0;
+            visibility: hidden;
+            background: white;
+            z-index: 10;
+            width: 100%;
+            /*border: 1px solid #262626;*/
+            transition: all .2s;
+            border-radius: 3px;
+            box-shadow: 0px 0px 2px #262626;
+            max-height: 200px;
+            overflow-y: auto;
+            overflow-x: hidden;
+            opacity:0;
+        }
+
+            .customSelect .opciones .opcion {
+                display: block;
+                width: 100%;
+                padding: 5px;
+                border-bottom: 1px solid #f3f3f3;
+            }
+
+                .customSelect .opciones .opcion:hover {
+                    transform: scale(1.01);
+                    background: #1b6ec2;
+                    color: white;
+                }
+
+                .customSelect .opciones .opcion.default {
+                    background: #f3f3f3;
+                    text-align: center;
+                    color: black;
+                }
+
+                    .customSelect .opciones .opcion.default:hover {
+                    }
+
+            .customSelect .opciones.show {
+                visibility: visible;
+                opacity:1;
+            }
+</style>
+@if (!string.IsNullOrEmpty(Label))
+{
+    <div class=""><span>@Label</span></div>
+}
+@if (TList != null)
+{
+    @if (TList.Count > 0)
+    {
+        <button type="button" class="customSelect" @onclick="(() => show = !show)"  @onblur="(() => show = false)" @attributes="@AdditionalAttributes">
+            @if (TItemActual != null)
+            {
+                <div class="seleccionado"><span>@TTemplate(TItemActual)</span> <i class=" ml-1 @(show ? "fas fa-caret-up" : "fas fa-caret-down")"></i></div>
+            }
+            else if (MostrarDefault)
+            {
+                <div class="seleccionado"><span>@MsjDefault</span> <i class="ml-1 @(show ? "fas fa-caret-up" : "fas fa-caret-down")"></i></div>
+            }
+            else
+            {
+                <div class="seleccionado"><span>@TTemplate(TList[0])</span> <i class="ml-1 @(show ? "fas fa-caret-up" : "fas fa-caret-down")"></i></div>
+            }
+            <div class="opciones @(show ? "show" : "")">
+                @if (MostrarDefault)
+                {
+                    <div class="opcion default">@MsjDefault</div>
+                }
+                @foreach (T item in TList)
+                {
+                    <div class="opcion" @onclick="(() => ItemSeleccionado(item))">@TTemplate(item)</div>
+                }
+
+            </div>
+        </button>
+    }
+    else
+    {
+        <div class="text-danger">No hay elementos para mostrar</div>
+
+    }
+}
+else
+{
+    <div class="text-danger">No hay listado</div>
+}
+
+@code {
+    [Parameter] public List<T> TList { get; set; }
+    [Parameter] public EventCallback<T> SelectItem { get; set; }
+    [Parameter] public T TItemActual { get; set; }
+    [Parameter] public bool MostrarDefault { get; set; } = true;
+    [Parameter] public string MsjDefault { get; set; } = "--Selecciona una opción --";
+    [Parameter] public string Label { get; set; }
+    [Parameter] public RenderFragment<T> TTemplate { get; set; }
+
+    [Parameter(CaptureUnmatchedValues = true)]
+    public Dictionary<string, object> AdditionalAttributes { get; set; }
+
+    public bool show { get; set; } = false;
+    public void ItemSeleccionado(T item)
+    {
+        TItemActual = item;
+        SelectItem.InvokeAsync(item);
+    }
+
+}

@@ -1,0 +1,396 @@
+﻿@inject HttpClient http
+@inject IJSRuntime js
+@inject IToastService toastService
+@attribute [Authorize(Roles = "Admin, Configuracion")]
+@page "/BackOffice/Configuraciones/ListaPrecios/{Id:int}"
+@layout BackOfficeLayout
+@inject NavigationManager uri
+@inject IJSRuntime js
+@if (cargando)
+{<Loading></Loading>}
+
+<nav aria-label="breadcrumb">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item" @onclick="@(() => uri.NavigateTo("/BackOffice/Configuraciones"))">Configuraciones</li>
+        <li class="breadcrumb-item"  @onclick="@(() => uri.NavigateTo("/BackOffice/Configuraciones/ListaListaPrecios"))">Listado Listas Precios</li>
+
+        <li class="breadcrumb-item active" aria-current="page" @onclick="@(() => uri.NavigateTo($"/BackOffice/Configuraciones/ListaPrecios/{Id}"))">@(Id == 0? "Crear" : "Editar") Lista Precios</li>
+    </ol>
+</nav>
+<div class="col-md-12 mx-0 px-0">
+
+
+    <div><h2>@(Id == 0? "CREAR" : "EDITAR") LISTA DE PRECIOS</h2></div>
+
+    @if (ListaPrecios != null)
+    {
+        <EditForm Model="ListaPrecios" OnValidSubmit="@(async() =>{cargando = true; await Confirmar(); })">
+            <div class="col-md-12 row mx-0">
+                <div class="col-md-6 my-4">
+                    <strong>Tipo de Lista de Precios:</strong>
+                    <SelectGenerico Context="tipo" TItemActual="ListaPrecios.TipoListaPrecio"
+                                    TList="tiposListaDePrecios"
+                                    T="TipoListaPrecio"
+                                    SelectItem="@((TipoListaPrecio tipo)=> { ListaPrecios.TipoListaPrecio = tipo; ListaPrecios.TipoListaPrecioId = tipo.Id; })">
+                        <TTemplate>
+                            @tipo.nombre
+                        </TTemplate>
+                    </SelectGenerico>
+                    @if (Id != 0)
+                    {
+
+                        <div class="mt-3">
+
+                        </div>
+                        <div class="mt-3"><strong>Fecha creación:</strong> @ListaPrecios.fecha.ToString("dddd, dd MMMM yyyy HH:mm:ss")</div>
+                        <div class="mt-3"><strong>Estado:</strong> @(ListaPrecios.vigente ?"VIGENTE" : "OBSOLETA") </div>
+
+                    }
+                   
+                    <div class="col-md-12 px-0 mt-3">
+                        @if (ListaPrecios.TipoListaPrecio != null)
+                        {
+                            <strong>Mínimo de compra:</strong> <span>$ @ListaPrecios.TipoListaPrecio?.minimoDeCompra</span>
+                        }
+                    </div>
+                    <div class="col-md-12 px-0 mt-2">
+                        <label class="col-md-12 mx-0 px-0"><strong>Clasificación</strong></label>
+                        <input class="form-control" type="number" min="0" @bind="ListaPrecios.clasificacion" />
+                    </div>
+                    <div class="col-md-12 px-0 mt-3">
+
+                        <strong>Cantidad de productos:</strong> <span>@ListaPrecios.DetalleListaPrecios.Count()</span>
+
+                    </div>
+                </div>
+                <div class="col-md-4 offset-md-2">
+                    <img src="img/LOGO 2019.png" style="width:200px" />
+                </div>
+            </div>
+            <ListadoGenerico listado="categorias">
+                <HayRegistros>
+                    <div class="col-md-12 d-flex justify-content-end">
+                        <div class="btn btn-outline-info mr-2" style="cursor:pointer" @onclick="@(async() => { cargando = true; await ActualizarTodosLosCostos(); })"><i class="fas fa-redo-alt text-info mr-1"></i> Actualizar todos los costos</div>
+                        <div class="btn btn-outline-success" style="cursor:pointer" @onclick="@(async() => { await ToggleModal("listadoListas");await ListarListas(); })"><i class="far fa-copy mr-1"></i>Clonar Lista</div>
+
+                    </div>
+                    @foreach (CategoriaProducto categoria in categorias)
+                    {
+                        <div class="my-4">
+                            <div class="mb-2 py-2 px-4 text-white font-weight-bold rounded" style="background:linear-gradient(90deg, #E88525, rgba(230,230,230,.8) 50%)">
+                                <h2 class="my-0 py-0 px-4 mx-4">@categoria?.nombre.ToUpper()</h2>
+                            </div>
+                            <div class="px-0">
+                              
+                                @foreach (Producto producto in productos.Where(x => x.CategoriaProductoId == categoria.Id).ToList())
+                                {
+
+                                    <div class="col-md-12 row mx-0 px-0 border my-1">
+                                        <div class="col-md-2 mx-0 px-auto bg-white">
+                                            <div class="col-md-12 px-0 mx-0 my-2 text-center"><strong>@producto.nombre?.ToUpper()</strong></div>
+                                            <img src="@producto.Foto" style="width:150px; height:150px" />
+                                        </div>
+                                        <div class="col-md-10 px-0 mx-0">
+                                            <div class="col-md-12 row mx-0 bg-dark text-white font-weight-bold">
+                                                <div class="col-md-2 mx-0 px-0 text-center">Producto</div>
+                                                <div class="col-md-2 mx-0 px-0  text-center">Costo</div>
+
+                                                <div class="col-md-2 mx-0 px-0  text-center"> MarkUp</div>
+                                                <div class="col-md-2 mx-0 px-0  text-center"> Descuento</div>
+                                                <div class="col-md-2 mx-0 px-0  text-center">Precio Venta</div>
+                                                <div class="col-md-1 mx-0 px-0  text-center"> Margen</div>
+
+                                                <div class="col-md-1 mx-0 px-0  text-center">Selec</div>
+
+                                            </div>
+                                            @foreach (ProductoPresentacion productoPresentacion in productoPresentaciones.Where(x => x.ProductoId == producto.Id).ToList())
+                                            {
+                                                bool estaEnLaLista = ListaPrecios.DetalleListaPrecios.Where(x => x.ProductoPresentacionId == productoPresentacion.Id).Count() > 0 ? true : false;
+                                                <div class="col-md-12 row mx-0 px-0 py-1 border-bottom @(!estaEnLaLista ? "bg-light text-dark" :"")">
+                                                    <div class="col-md-2 mx-0 px-0 my-auto"><h4 class="text-center m-0"><strong>@productoPresentacion.PresentacionProducto.nombre</strong></h4></div>
+                                                    @if (estaEnLaLista)
+                                                    {
+                                                        DetalleListaPrecios detalle = ListaPrecios.DetalleListaPrecios.FirstOrDefault(x => x.ProductoPresentacionId == productoPresentacion.Id);
+                                                        <div class="col-md-2 p-1 ">
+                                                            <h4 class="text-center m-0">$ <strong>@Math.Round(detalle.precioCosto, 2)</strong> <i class="fas fa-redo-alt text-info" style="cursor:pointer" @onclick="@(async () => { detalle.precioCosto = await BuscarCosto(productoPresentacion); calcularTotal(detalle, "rentabilidad"); this.StateHasChanged(); })"></i></h4>
+                                                        </div>
+                                                        <div class="col-md-2 px-1 text-center">
+                                                            <div class="input-group input-group-sm mb-1">
+                                                                <input class="form-control" type="number" step="0.01" @bind="@detalle.porcentajeRentabilidad" @bind:event="oninput" @onkeyup='(()=>calcularTotal(detalle, "rentabilidad"))' />
+
+                                                                <div class="input-group-append">
+                                                                    <span class="input-group-text" id="inputGroup-sizing-sm">%</span>
+                                                                </div>
+                                                            </div>
+                                                        </div>
+                                                        <div class="col-md-2 px-1 text-center">
+                                                            <div class="input-group input-group-sm mb-1">
+                                                                <input class="form-control" type="number" step="0.01" @bind="@detalle.porcentajeDescuento" @bind:event="oninput" @onkeyup='(()=>calcularTotal(detalle, "descuento"))' />
+
+                                                                <div class="input-group-append">
+                                                                    <span class="input-group-text" id="inputGroup-sizing-sm">%</span>
+                                                                </div>
+                                                            </div>
+                                                        </div>
+                                                        <div class="col-md-2 px-1 text-center">
+                                                            <div class="input-group input-group-sm mb-1">
+                                                                <div class="input-group-prepend">
+                                                                    <span class="input-group-text" id="inputGroup-sizing-sm">$</span>
+                                                                </div>
+                                                                <input class="form-control" type="number" step="0.01" min="0.01" @bind="@detalle.precioUnitarioFinal" @bind:event="oninput" @onkeyup='(()=>calcularTotal(detalle, "precioFinal"))' />
+                                                            </div>
+                                                        </div>
+                                                        <div class="col-md-1 px-1 text-center">
+                                                            <strong>
+                                                                @(detalle.precioUnitarioFinal != 0.00M ? ((1 - (detalle.precioCosto / detalle.precioUnitarioFinal)) * 100).ToString("0.##") : "0.00")%
+                                                            </strong>
+
+
+                                                        </div>
+                                                    }
+                                                    else
+                                                    {
+                                                        <div class="col-md-9"></div>
+                                                    }
+                                                    @*<div class="col-md-1 mx-0 px-0"><h4 class="text-center">$ @(productoPresentacion.esFormulado? productoPresentacion.FormulaProducto?.total : productoPresentacion.costo)</h4></div>*@
+                                                    <div class="col-md-1 p-1 text-center">
+                                                        <input class="" @onclick="@(()=>ToggleProducto(productoPresentacion))" type="checkbox" checked="@(estaEnLaLista)" />
+                                                    </div>
+                                                </div>
+
+                                            }
+                                        </div>
+                                    </div>
+                                }
+
+                            </div>
+
+                        </div>
+
+                    }
+                    <button class="btn-outline-olive btn-block my-4" type="submit">@(Id == 0? "CREAR" : "EDITAR")</button>
+                </HayRegistros>
+            </ListadoGenerico>
+        </EditForm>
+    }else{
+      <div class="col-md-12 mx-0 px-0">
+          <strong>Cargando...</strong>
+      </div>
+    }
+</div>
+<div class="modal" id="listadoListas" tabindex="-1" role="dialog">
+    <div class="modal-dialog modal-xl " role="document">
+        <div class="modal-content">
+
+            <div class="modal-body m-0 p-1">
+                <ListadoGenerico listado="listas">
+
+                    <HayRegistros>
+                        <table class="table table-sm">
+                            <thead>
+                                <tr>
+                                    <th>Fecha</th>
+                                    <th>Tipo</th>
+                                    <th>Mínimo de compra</th>
+                                    <th>Clasificación</th>
+                                    <th>Acciones</th>
+
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach (ListaPrecios lista in listas)
+                                {
+                                    <tr>
+                                        <td>@lista.fecha</td>
+                                        <td>@lista.TipoListaPrecio?.nombre</td>
+                                        <td>@lista.TipoListaPrecio?.minimoDeCompra</td>
+                                        <td>@lista.clasificacion</td>
+                                        <td>
+                                       
+                                            <button class="btn btn-sm p-1" title="CLONAR" @onclick="@(async()=> { cargando = true;await ToggleModal("listadoListas");  await ClonarLista(lista.Id); })">
+                                                <i class="far fa-copy"></i> CLONAR
+                                            </button>
+                                        </td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+
+                    </HayRegistros>
+                </ListadoGenerico>
+            </div>
+
+        </div>
+    </div>
+</div>
+
+@code {
+    [Parameter] public int Id { get; set; }
+    public ListaPrecios ListaPrecios { get; set; }
+    [Parameter] public EventCallback callback { get; set; }
+    public List<ProductoPresentacion> productoPresentaciones { get; set; }
+    public List<CategoriaProducto> categorias { get; set; }
+    public List<Producto> productos { get; set; }
+    public List<TipoListaPrecio> tiposListaDePrecios { get; set; }
+    public bool cargando { get; set; } = false;
+    public List<ListaPrecios> listas { get; set; }
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (Id == 0)
+        {
+            ListaPrecios = new ListaPrecios();
+        }
+        else {
+            ListaPrecios = await http.GetJsonAsync<ListaPrecios>($"api/ListaPrecios/{Id}");
+
+        }
+
+        await ListarTiposListaDePrecios();
+
+        await ListarProductosPresentacion();
+        productos = productoPresentaciones.Select(x => x.Producto).Distinct().ToList();
+        categorias = productos.Select(x => x.CategoriaProducto).Distinct().ToList();
+
+
+    }
+    public async Task ListarProductosPresentacion()
+    {
+        productoPresentaciones = await http.GetJsonAsync<List<ProductoPresentacion>>("api/ProductoPresentacion/ListaPrecios");
+
+    }
+
+    public async Task ListarListas()
+    {
+        listas = await http.GetJsonAsync<List<ListaPrecios>>("api/ListaPrecios");
+    }
+    public async Task ToggleProducto(ProductoPresentacion producto)
+    {
+
+        decimal costoFormulado = 0.00M;
+        if (ListaPrecios.DetalleListaPrecios.Where(x => x.ProductoPresentacionId == producto.Id).Count() == 0)
+        {
+
+            if (producto.esFormulado)
+            {
+                @if (producto.FormulaProducto != null)
+                {
+                    costoFormulado = await http.GetJsonAsync<decimal>($"api/FormulaProducto/CostoFormula?FormulaId={producto.FormulaProducto.Id}");
+                }
+
+            }
+
+
+            ListaPrecios.DetalleListaPrecios.Add(new DetalleListaPrecios
+            {
+                ProductoPresentacionId = producto.Id,
+                precioCosto = producto.esFormulado ? costoFormulado : producto.costo
+            });
+        }
+
+        else
+        {
+
+            ListaPrecios.DetalleListaPrecios.Remove(ListaPrecios.DetalleListaPrecios.FirstOrDefault(x => x.ProductoPresentacionId == producto.Id));
+        }
+        this.StateHasChanged();
+    }
+    public async Task<decimal> BuscarCosto(ProductoPresentacion producto){
+        if (producto.esFormulado && producto.FormulaProducto != null)
+        {
+
+            return await http.GetJsonAsync<decimal>($"api/FormulaProducto/CostoFormula?FormulaId={producto.FormulaProducto?.Id}");
+
+        }
+        else {
+            return producto.costo;
+        }
+
+    }
+    public async Task ActualizarTodosLosCostos() {
+
+        foreach (DetalleListaPrecios detalle in ListaPrecios.DetalleListaPrecios) {
+
+            detalle.precioCosto = await BuscarCosto(productoPresentaciones.Find(x => x.Id == detalle.ProductoPresentacionId));
+            calcularTotal(detalle, "rentabilidad"); this.StateHasChanged();
+        }
+        cargando = false;
+    }
+    public async Task ListarTiposListaDePrecios()
+    {
+        tiposListaDePrecios = await http.GetJsonAsync<List<TipoListaPrecio>>("api/TipoListaPrecio/DisponiblesParaCrearListaPrecios");
+    }
+
+    public void calcularTotal(DetalleListaPrecios detalle, string quienfue)
+    {
+
+        if (quienfue == "rentabilidad")
+        {
+            detalle.precioUnitarioFinal = Math.Round((detalle.precioCosto * (1 + detalle.porcentajeRentabilidad / 100)) * (1 - detalle.porcentajeDescuento / 100), 2);
+        }
+        if (quienfue == "precioFinal")
+        {
+            detalle.porcentajeRentabilidad = Math.Round(((detalle.precioUnitarioFinal / ((1 - detalle.porcentajeDescuento / 100) * detalle.precioCosto)) - 1) * 100, 2);
+        }
+        if (quienfue == "descuento")
+        {
+            detalle.precioUnitarioFinal = Math.Round((detalle.precioCosto * (1 + detalle.porcentajeRentabilidad / 100)) * (1 - detalle.porcentajeDescuento / 100), 2);
+        }
+    }
+
+    public async Task Confirmar()
+    {
+        try
+        {
+            if (Id == 0)
+            {
+                ListaPrecios.TipoListaPrecio = null;
+                ListaPrecios.DetalleListaPrecios.ForEach((x) => { x.ProductoPresentacion = null; });
+                await http.PostJsonAsync("api/ListaPrecios", ListaPrecios);
+                cargando = false;
+                toastService.ShowSuccess($"Se creó correctamente la Lista de Precio");
+                uri.NavigateTo("/BackOffice/Configuraciones/ListaListaPrecios");
+
+            }
+            else
+            {
+                await http.PutJsonAsync($"api/ListaPrecios/{ListaPrecios.Id}", ListaPrecios);
+                cargando = false;
+
+                toastService.ShowSuccess($"Se editó correctamente la Lista de Precio ");
+                uri.NavigateTo("/BackOffice/Configuraciones/ListaListaPrecios");
+            }
+        }
+        catch (Exception ex)
+        {
+            cargando = false;
+
+            toastService.ShowError($"Ocurrió un error:  {ex.Message}");
+
+        }
+
+
+        await CloseAllModals();
+
+        await callback.InvokeAsync(new Object());
+
+    }
+    public async Task CloseAllModals()
+    {
+
+        await js.InvokeAsync<object>("CloseAllModals");
+    }
+    public async Task ClonarLista(int Id) {
+
+        ListaPrecios listaAClonar = await http.GetJsonAsync<ListaPrecios>($"api/ListaPrecios/{Id}");
+        ListaPrecios.DetalleListaPrecios = new List<DetalleListaPrecios>();
+        listaAClonar.DetalleListaPrecios.ForEach(x => { x.Id = 0; ListaPrecios.DetalleListaPrecios.Add(x); });
+        cargando = false;
+    }
+
+
+    public async Task ToggleModal(string id)
+    {
+        await js.InvokeAsync<object>("ModalToggle", id);
+    }
+}

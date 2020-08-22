@@ -1,0 +1,242 @@
+﻿@page "/BackOffice/Ventas/Comprobante/{Id:int}"
+@inject IJSRuntime js
+@inject HttpClient http
+@layout BackOfficeLayout
+@inject AuthenticationStateProvider authStateProvider
+@inject IRepositorio repositorio
+@inject IToastService toastService
+@inject NavigationManager uri
+@attribute [Authorize(Roles = "Admin, Ventas")]
+
+    <nav aria-label="breadcrumb">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item" @onclick="@(()=>uri.NavigateTo("BackOffice/Ventas"))">Ventas</li>
+            <li class="breadcrumb-item" a @onclick="@(()=>uri.NavigateTo("BackOffice/Ventas/ListadoComprobantes"))">Listado Comprobantes</li>
+
+            <li class="breadcrumb-item active" aria-current="page" @onclick="@(()=>uri.NavigateTo($"BackOffice/Ventas/Comprobante/{Id}"))">Detalle Comprobante</li>
+        </ol>
+    </nav>
+<h2>Comprobante de Venta</h2>
+@if (factura != null)
+{
+
+    <div class="row col-md-12 my-3 mx-0 px-0">
+        <div class="col-md-12 mx-0 px-0">
+            <ul class="nav nav-tabs" id="myTab" role="tablist">
+                <li class="nav-item">
+                    <a class="nav-link active" id="home-tab" data-toggle="tab" href="#home" role="tab" aria-controls="home" aria-selected="true">Datos Generales</a>
+                </li>
+
+                <li class="nav-item">
+                    <a class="nav-link" id="profile-tab" data-toggle="tab" href="#profile" role="tab" aria-controls="profile" aria-selected="false">Direccion de entrega</a>
+                </li>
+
+            </ul>
+            <div class="tab-content  p-3" id="myTabContent" style="box-shadow:1px 1px 4px #213154; border-radius:5px;">
+                <div class="tab-pane fade show active" id="home" role="tabpanel" aria-labelledby="home-tab">
+                    <div class="col-md-12 mx-0 my-4 px-0 row d-flex justify-content-between">
+
+
+                        <h3><strong class="text-info">@factura.TipoComprobante.nombre @factura.codigo</strong></h3>
+                        <div class="col-md-3 mx-0 px-2">
+                            <strong>Estado: </strong><span>@factura.EstadoFactura.nombre</span>
+                        </div>
+
+                    </div>
+                    <div class="col-md-12 mx-0 px-0 row my-2">
+                        <div class="col-md-3  mx-0 px-2">
+
+                            <strong>Vendedor: </strong><span>@factura.Vendedor.nombre</span>
+
+                        </div>
+                        <div class="col-md-3  mx-0 px-2">
+                            <strong>Depósito: </strong><span>@factura.Deposito.nombre</span>
+                        </div>
+                        <div class="col-md-3  mx-0 px-2">
+                            <strong>Fecha Factura: </strong><span>
+                                @factura.fecha.ToString("yyyy-MM-dd HH:mm")
+                            </span>
+
+                        </div>
+                        <div class="col-md-3 mx-0 px-2">
+                            <strong>Fecha de Entrega: </strong>   <span>@factura.fechaEntrega.ToString("yyyy-MM-dd")</span>
+
+                        </div>
+
+                    </div>
+                    @if (factura.VendedorId != 0)
+                    {
+                        @*DATOS DEL CLIENTE*@
+                        <h3 class="border-bottom mt-3 text-info"><strong>CLIENTE</strong></h3>
+
+                        <div class="row col-md-12 mx-0 my-1 px-2 align-items-center">
+                            <div class="col-md-5 mx-0 pl-0">
+
+                                <strong>Nombre y apellido: </strong>
+
+
+                                <a href=@($"/BackOffice/Ventas/Cliente/{factura.ClienteId}")>#@factura.ClienteId @factura.Cliente.nombre, @factura.apellidoCliente</a>
+
+
+
+                            </div>
+
+
+                            <div class="col-md-3">
+                                <strong>Celular: </strong><span>@factura.celularCliente</span>
+
+                            </div>
+                            <div class="col-md-4">
+                                <strong>Email: </strong><span>@factura.emailCliente</span>
+
+                            </div>
+                        </div>
+                    }
+                </div>
+
+
+                <div class="tab-pane fade" id="profile" role="tabpanel" aria-labelledby="profile-tab">
+                    <div class="entrega my-1 col-md-12">
+                        @*DIRECCION DE ENTREGA*@
+                        <div class="row col-md-12  px-0 my-3">
+
+                            <div class="col-md-12">
+
+                                <strong>Provincia: </strong><span>@factura.Domicilio.Provincia.nombre </span><strong>Departamento: </strong><span>@factura.Domicilio.Departamento.nombre</span>
+
+                                <div class="col-md-12 row my-2">
+                                    <strong>Calle: @factura.Domicilio.calle @factura.Domicilio.numero Piso: @factura.Domicilio.piso Manzana: @factura.Domicilio.manzana</strong>
+
+                                </div>
+                            </div>
+                            <div class="col-md-12 mt-2 bg-secondary" id="mapaFacturaForm" style="height:200px">
+
+                            </div>
+
+                        </div>
+                    </div>
+
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="detallesFactura my-4">
+        <div class="col-md-12 row mx-0 p-2 d-flex justify-content-between align-items-center my-2" style="background: linear-gradient(90deg, #262626, #213154);color:white;border-radius:5px;">
+            <h3>Productos (@factura.detallesFactura.Count())</h3>
+            <div class="listasPrecios d-flex align-items-center">
+                <div class="mx-2">Lista:</div>
+
+                <strong class="mx-2">@factura.ListaPrecios.TipoListaPrecio.nombre #@factura.ListaPrecios.Id</strong>
+
+
+
+            </div>
+
+        </div>
+        <table class="table table-sm d-xs-block" style="overflow-x:auto;">
+            <thead>
+                <tr class="bg-dark text-white p-1 rounded">
+                    <th>Producto</th>
+                    <th>Presentacion</th>
+                    <th>Cantidad</th>
+                    <th>Precio Unitario</th>
+                    <th>Total</th>
+                </tr>
+            </thead>
+            <tbody>
+
+                @foreach (DetalleFactura detallesFactura in factura.detallesFactura)
+                {
+                    <tr class="">
+                        <td>
+
+
+                            <div><img class="mx-2" src="@detallesFactura.ProductoPresentacion.Producto.Foto" style="height:20px; width:20px;border-radius:50%;" />@detallesFactura.ProductoPresentacion.Producto.nombre.ToUpper()</div>
+
+
+                        </td>
+
+                        <td>
+
+
+                            <strong> @detallesFactura.ProductoPresentacion.PresentacionProducto.nombre</strong>
+                        </td>
+
+                        <td>@detallesFactura.cantidad</td>
+
+                        <td>@detallesFactura.precioUnitario</td>
+
+                        <td>$@(detallesFactura.precioUnitario * detallesFactura.cantidad)</td>
+                    </tr>
+                }
+                <tr class="bg-dark text-white rounded">
+                    <th colspan="4"></th>
+
+                    <th class=""><strong>Total:</strong> $@factura.totalComprobante</th>
+                </tr>
+            </tbody>
+
+        </table>
+    </div>
+
+}
+@code {
+    [Parameter]
+    public int Id { get; set; }
+    public Factura factura { get; set; }
+    public string userName { get; set; }
+    public System.Security.Claims.ClaimsPrincipal User { get; set; }
+
+
+
+    public ListaPrecios lista { get; set; }
+
+    protected override async Task OnParametersSetAsync()
+    {
+        if (Id != 0)
+        {
+            factura = await http.GetJsonAsync<Factura>($"api/Factura/{Id}");
+            await ActualizarMapa();
+        }
+    }
+
+
+
+    protected override async Task OnInitializedAsync()
+    {
+        var authState = await authStateProvider.GetAuthenticationStateAsync();
+        User = authState.User;
+        userName = User.Identity.Name;
+    }
+
+    public async Task ToggleModal(string id)
+    {
+
+        await js.InvokeAsync<object>("ModalToggle", id);
+    }
+
+
+
+
+    public async Task ActualizarMapa()
+    {
+        if (factura.Domicilio.numero != 0 && !string.IsNullOrWhiteSpace(factura.Domicilio.calle) && factura.Domicilio.Provincia != null && factura.Domicilio.Departamento != null && !string.IsNullOrWhiteSpace(factura.Domicilio.Departamento.nombre) && !string.IsNullOrWhiteSpace(factura.Domicilio.Provincia.nombre))
+        {
+            List<decimal> coords = await js.InvokeAsync<List<decimal>>("buscarCoordenadas", $"{factura.Domicilio.numero}+{factura.Domicilio.calle}+{factura.Domicilio.Departamento.nombre}+{factura.Domicilio.Provincia.nombre}+Argentina", "mapaFacturaForm");
+            factura.Domicilio.latitud = coords[0];
+            factura.Domicilio.longitud = coords[1];
+
+        }
+        else
+        {
+            Console.WriteLine("No estan todos los campos completos");
+        }
+    }
+
+
+
+
+
+
+}

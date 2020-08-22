@@ -1,0 +1,125 @@
+﻿@inject HttpClient http
+@inject IJSRuntime js
+@attribute [Authorize(Roles = "Admin, Configuracion")]
+
+@inject IToastService toastService
+
+@if (cargando)
+{
+    <Loading></Loading>
+}
+@if (producto != null)
+{
+
+    <EditForm Model="@producto" OnValidSubmit="@(async () =>{cargando = true; await Confirmar();})">
+        <DataAnnotationsValidator />
+        <div class="form-group">
+            <label>Nombre</label>
+            <input class="form-control" @bind="@producto.nombre" />
+            <ValidationMessage For="(()=>producto.nombre)"></ValidationMessage>
+        </div>
+
+        <div class="form-group col-md-12">
+            <InputImg Label="Foto" ImagenSeleccionada="ImagenSeleccionada" ImagenTemporal="@imagenTemporal"></InputImg>
+        </div>
+
+        <div class="form-group">
+            <label>Categoria</label>
+            <ListadoGenerico listado="categoriaProductos">
+                <HayRegistros>
+                    <div>
+                        <select @onchange="@((ChangeEventArgs e)=> { producto.CategoriaProducto = categoriaProductos.Where(x => x.Id == Convert.ToInt32(e.Value.ToString())).Single(); producto.CategoriaProductoId = Convert.ToInt32(e.Value.ToString()); })">
+                            <option selected disabled>-- Seleccione una categoria --</option>
+                            @foreach (CategoriaProducto categoriaProducto in categoriaProductos)
+                            {
+                                <option selected="@(producto.CategoriaProducto != null ? (categoriaProducto.Id == producto.CategoriaProducto.Id) : false)" value="@categoriaProducto.Id">@categoriaProducto.nombre</option>
+                            }
+                        </select>
+                    </div>
+                </HayRegistros>
+            </ListadoGenerico>
+
+        </div>
+        <button class="btn-outline-olive btn-block" type="submit">@accion</button>
+    </EditForm>
+}
+@code {
+    [Parameter]
+    public Producto producto { get; set; }
+    [Parameter]
+    public string accion { get; set; }
+    [Parameter]
+    public EventCallback callback { get; set; }
+    public string imagenTemporal { get; set; }
+    public bool cargando { get; set; } = false;
+    public List<CategoriaProducto> categoriaProductos { get; set; }
+
+    private void ImagenSeleccionada(string imagenBase64)
+    {
+        producto.Foto = imagenBase64;
+    }
+
+    public async Task Confirmar()
+    {
+        try
+        {
+            if (accion == "Crear")
+            {
+                producto.CategoriaProducto = null;
+                await http.PostJsonAsync("api/producto", producto);
+                cargando = false;
+
+                toastService.ShowSuccess($"Se creo correctamente el producto {producto.nombre}");
+            }
+            if (accion == "Editar")
+            {
+                await http.PutJsonAsync($"api/producto/{producto.Id}", producto);
+                cargando = false;
+
+                toastService.ShowSuccess($"Se editó correctamente el producto {producto.nombre}");
+
+
+            }
+        }
+        catch (Exception ex)
+        {
+            cargando = false;
+
+            toastService.ShowError($"Ocurrió un error: {ex.Message}");
+        }
+
+
+        await CloseAllModals();
+
+        await callback.InvokeAsync(new Object());
+
+    }
+    public async Task CloseAllModals()
+    {
+        await js.InvokeAsync<object>("CloseAllModals");
+    }
+    protected override async Task OnInitializedAsync()
+    {
+        await ListarCategoriaProducto();
+    }
+    public async Task ListarCategoriaProducto()
+    {
+        categoriaProductos = await http.GetJsonAsync<List<CategoriaProducto>>("api/CategoriaProducto?cantidadDeRegistros=50");
+    }
+
+    protected override void OnParametersSet()
+    {
+        if (producto != null)
+        {
+
+            if (!string.IsNullOrWhiteSpace(producto.Foto))
+            {
+                imagenTemporal = producto.Foto;
+            }
+
+
+
+        }
+
+    }
+}

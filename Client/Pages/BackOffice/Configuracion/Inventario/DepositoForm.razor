@@ -1,0 +1,87 @@
+﻿@inject HttpClient http
+@inject IJSRuntime js
+@inject IToastService toastService
+@inject HttpClient http
+@attribute [Authorize(Roles = "Admin, Configuracion")]
+
+@if (cargando)
+{
+    <Loading></Loading>
+}
+@if (deposito != null)
+{
+
+    <EditForm Model="@deposito" OnValidSubmit="@(async()=>{cargando = true; await Confirmar(); })">
+        <DataAnnotationsValidator />
+        <div class="form-group">
+            <label>Nombre</label>
+            <input class="form-control" @bind="@deposito.nombre" />
+            <ValidationMessage For="(()=>deposito.nombre)"></ValidationMessage>
+        </div>
+
+
+        <button class="btn-outline-olive btn-block" type="submit">@accion</button>
+    </EditForm>
+}
+@code {
+    [Parameter]
+    public Deposito deposito { get; set; }
+    [Parameter]
+    public string accion { get; set; }
+    [Parameter]
+    public EventCallback callback { get; set; }
+    public bool cargando { get; set; } = false;
+    public List<Provincia> provincias { get; set; } = new List<Provincia>();
+    public List<Departamento> departamentos { get; set; } = new List<Departamento>();
+    public async Task Confirmar()
+    {
+        try
+        {
+            if (accion == "Crear")
+            {
+                await http.PostJsonAsync("api/deposito", deposito);
+                cargando = false;
+                toastService.ShowSuccess($"Se creó correctamente la Categoria Cliente {deposito.nombre}");
+
+            }
+            if (accion == "Editar")
+            {
+                await http.PutJsonAsync($"api/deposito/{deposito.Id}", deposito);
+                cargando = false;
+
+                toastService.ShowSuccess($"Se editó correctamente la Categoria Cliente {deposito.nombre}");
+
+            }
+        }
+        catch (Exception ex)
+        {
+            cargando = false;
+
+            toastService.ShowError($"Ocurrió un error:  {ex.Message}");
+        }
+
+
+        await CloseAllModals();
+
+        await callback.InvokeAsync(new Object());
+
+    }
+
+    public async Task CloseAllModals()
+    {
+
+        await js.InvokeAsync<object>("CloseAllModals");
+    }
+
+    protected override async Task OnInitializedAsync()
+    {
+        provincias = await http.GetJsonAsync<List<Provincia>>("api/provincia?cantidadDeRegistros=25");
+
+    }
+
+
+
+
+
+
+}

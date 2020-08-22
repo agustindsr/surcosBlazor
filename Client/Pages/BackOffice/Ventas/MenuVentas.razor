@@ -1,0 +1,49 @@
+﻿@page "/BackOffice/Ventas"
+@attribute [Authorize(Roles = "Admin, Ventas")]
+
+@layout BackOfficeLayout
+<div class="opcionesMenu mt-4">
+    <NavLink class="nav-link" href="BackOffice/Ventas/ListadoClientes" Match="NavLinkMatch.All">
+        <div class="itemMenu">
+            <div class="titulo">
+                <span>Clientes</span>
+            </div>
+        </div>
+    </NavLink>
+    <NavLink class="nav-link" href="BackOffice/Ventas/ListadoPedidos" Match="NavLinkMatch.All">
+        <div class="itemMenu">
+            <div class="titulo">
+                <span>Pedidos</span>
+            </div>
+        </div>
+    </NavLink>
+
+
+    <NavLink class="nav-link" href="BackOffice/Ventas/Comprobante" Match="NavLinkMatch.All">
+        <div class="itemMenu">
+            <div class="titulo">
+                <span>Nuevo Comprobante</span>
+            </div>
+        </div>
+    </NavLink>
+
+    <NavLink class="nav-link" href="BackOffice/Ventas/ListadoComprobantes" Match="NavLinkMatch.All">
+        <div class="itemMenu">
+            <div class="titulo">
+                <span>Comprobantes</span>
+            </div>
+        </div>
+    </NavLink>
+
+
+    <NavLink class="nav-link" href="BackOffice/Ventas/Entregas" Match="NavLinkMatch.All">
+        <div class="itemMenu">
+            <div class="titulo">
+                <span>Entregas</span>
+            </div>
+        </div>
+    </NavLink>
+</div>
+@code {
+
+}

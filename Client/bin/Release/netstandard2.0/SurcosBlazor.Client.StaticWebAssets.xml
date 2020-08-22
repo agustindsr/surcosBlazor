@@ -1,0 +1,4 @@
+﻿<StaticWebAssets Version="1.0">
+  <ContentRoot BasePath="_content/Blazored.Toast" Path="C:\Users\agust\.nuget\packages\blazored.toast\3.1.1\build\..\staticwebassets\" />
+  <ContentRoot BasePath="_content/Tewr.Blazor.FileReader" Path="C:\Users\agust\.nuget\packages\tewr.blazor.filereader\1.5.0.20109\build\..\staticwebassets\" />
+</StaticWebAssets>

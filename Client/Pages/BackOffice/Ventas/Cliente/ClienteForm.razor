@@ -1,0 +1,385 @@
+﻿@inject HttpClient http
+@using System.Net.Http;
+@using System.Text;
+@using System.Text.Json;
+@using SurcosBlazor.Client.Auth
+@inject IToastService toastService
+@page "/BackOffice/Ventas/Cliente/{Id:int}"
+@inject ILoginService loginService
+@inject IJSRuntime js
+@layout BackOfficeLayout
+@inject NavigationManager uri
+@attribute [Authorize(Roles = "Admin, Ventas")]
+
+<style>
+    #map {
+        height: 250px;
+        background: rgb(200,200,200);
+    }
+
+    .clienteForm {
+        border-top: 10px solid #56A4E8;
+        padding: 20px 20px 0px 20px;
+    }
+</style>
+<nav aria-label="breadcrumb">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item" @onclick="@(()=>uri.NavigateTo("BackOffice/Ventas"))">Ventas</li>
+        <li class="breadcrumb-item"  @onclick="@(()=>uri.NavigateTo("BackOffice/Ventas/ListadoClientes"))">Listado Clientes</li>
+
+        <li class="breadcrumb-item active" aria-current="page" @onclick="@(()=>uri.NavigateTo($"BackOffice/Ventas/Cliente/{Id}"))">Detalle Cliente</li>
+    </ol>
+</nav>
+<h2>Cliente</h2>
+@if (cliente != null)
+{
+
+    <div class="clienteForm">
+        <EditForm Model="cliente" OnValidSubmit="Confimar">
+            <Blazored.FluentValidation.FluentValidationValidator />
+            @if (error)
+            {
+
+                <div class="my-3"><strong class="text-danger">@errorMessage</strong></div>
+            }
+            <div class="col-md-12 row mx-0 px-0">
+                @if (cliente.Id != 0)
+                {
+                    <div class="col-md-12 d-flex justify-content-end "><div class="col-md-2 btn btn-sm btn-outline-info" @onclick="@(() => ToggleModal("resumenCuenta"))">Resumen de cuenta</div></div>
+
+                }
+                <fieldset class="col-md-6">
+                    <legend>Datos Personales</legend>
+                    <div>
+
+                        <div class="mt-2">
+                            <InputMaterialize label="Nombre" @bind-Value="@cliente.nombre" class="col-md-12" />
+                            <ValidationMessage For="(() => cliente.nombre)"></ValidationMessage>
+                        </div>
+                        <div class="mt-2">
+                            <InputMaterialize label="Apellido" @bind-Value="@cliente.apellido" class="col-md-12" />
+
+                            <ValidationMessage For="(() => cliente.apellido)"></ValidationMessage>
+
+                        </div>
+                        <div class="mt-2">
+                            <InputMaterialize label="Email" @bind-Value="@cliente.email" class="col-md-12" />
+                            <ValidationMessage For="(() => cliente.email)"></ValidationMessage>
+
+                        </div>
+                        <div class="mt-2">
+                            <InputMaterialize label="Nombre" @bind-Value="@cliente.celular" class="col-md-12" />
+
+                            <ValidationMessage For="(() => cliente.celular)"></ValidationMessage>
+
+                        </div>
+
+                    </div>
+                </fieldset>
+                <div class="col-md-6">
+                    <SelectGenerico TList="categorias"
+                                    TItemActual="cliente.Categoria"
+                                    Label="Categoria"
+                                    T="CategoriaCliente"
+                                    Context="categoriaCliente" SelectItem="@((CategoriaCliente categoria) => { cliente.CategoriaClienteId = categoria.Id; cliente.Categoria = categoria; })">
+                        <TTemplate>
+                            @categoriaCliente.nombre
+                        </TTemplate>
+                    </SelectGenerico>
+                </div>
+
+                @*DIRECCION*@
+                <fieldset class="col-md-12 mx-0 px-0 row mt-2">
+                    <legend>
+                        Direccion de Entrega
+                    </legend>
+
+                    <div class="col-md-12 row mx-0 px-0 mt-1">
+                        <div class="col-md-6">
+                            <div class="col-md-12 row px-0">
+                                <div class="nav-item dropdown mt-2 col-md-5 offset-md-1 ml-0">
+
+                                    <SelectGenerico TList="provincias"
+                                                    TItemActual="cliente.Domicilio.Provincia"
+                                                    Label="Provincia"
+                                                    T="Provincia"
+                                                    Context="provincia" SelectItem="@(async (Provincia provincia) => { await ChangeProvincia(provincia); })">
+                                        <TTemplate>
+                                            @provincia.nombre
+                                        </TTemplate>
+                                    </SelectGenerico>
+                                    <ValidationMessage For="(() => cliente.Domicilio.Provincia)"></ValidationMessage>
+
+                                </div>
+
+                                <div class="nav-item dropdown mt-2 col-md-6 mx-0 ">
+                                    <SelectGenerico TList="departamentos"
+                                                    TItemActual="cliente.Domicilio.Departamento"
+                                                    Label="Departamento"
+                                                    T="Departamento"
+                                                    Context="departamento" SelectItem="@((Departamento departamento) => { ChangeDepartamento(departamento); })">
+                                        <TTemplate>
+                                            @departamento.nombre
+                                        </TTemplate>
+                                    </SelectGenerico>
+                                    <ValidationMessage For="(() => cliente.Domicilio.Departamento)"></ValidationMessage>
+
+                                </div>
+                            </div>
+                            <div class="col-md-12 row px-0">
+                                <div class="col-md-9 mt-2 pl-0">
+                                    <InputMaterialize label="Calle" @bind-Value="@cliente.Domicilio.calle" class="col-md-12" @onblur="@ActualizarMapa" />
+                                    <ValidationMessage For="(() => cliente.Domicilio.calle)"></ValidationMessage>
+
+                                </div>
+                                <div class="col-md-3 mt-2 px-0">
+                                    <InputMaterialize label="Numero" @bind-Value="@cliente.Domicilio.numero" class="col-md-12" @onblur="@ActualizarMapa" />
+                                    <ValidationMessage For="(() => cliente.Domicilio.numero)"></ValidationMessage>
+
+                                </div>
+                            </div>
+
+                            <div class="mt-2 col-md-12 row px-0">
+                                <InputMaterialize label="Piso" @bind-Value="@cliente.Domicilio.piso" class="col-md-12" @onblur="@ActualizarMapa" />
+                                <ValidationMessage For="(() => cliente.Domicilio.piso)"></ValidationMessage>
+
+                            </div>
+                            <div class="mt-2  col-md-12 row px-0">
+                                <InputMaterialize label="Manzana" @bind-Value="@cliente.Domicilio.manzana" class="col-md-12" @onblur="@ActualizarMapa" />
+                                <ValidationMessage For="(() => cliente.Domicilio.manzana)"></ValidationMessage>
+
+                            </div>
+                        </div>
+                        <div id="map" class="col-md-6 my-2"></div>
+
+                    </div>
+                </fieldset>
+            </div>
+            <button type="submit" class="btn btn-sm btn-block btn-info my-3 col-md-12 mx-0 px-0">@(cliente.Id == 0 ? "Crear" : "Editar")</button>
+        </EditForm>
+        <Modal modalId="resumenCuenta" modalTamaño="modal-lg" modalTitulo="Resumen de cuentas">
+            <table class="table table-sm">
+                <tr>
+                    <th>FECHA</th>
+                    <th>COMPROBANTE</th>
+                    <th>ESTADO</th>
+
+                    <th>DEBE</th>
+                    <th>HABER</th>
+                    <th>SALDO</th>
+
+                </tr>
+                @if (Id != 0)
+                {
+                    decimal saldo = cliente.saldoCC;
+                    decimal anterior = 0.00M;
+                    int aux = 0;
+                    @foreach (Comprobante comprobante in comprobantes)
+                    {
+                        string tipoComprobante = comprobante.GetType().Name;
+
+                        if (aux != 0)
+                        {
+                            saldo += anterior;
+                        }
+                        aux++;
+
+                        if (tipoComprobante == "Factura")
+                        {
+                            anterior = ((Factura)comprobante).TipoComprobante.nombre != "NC" ? -1 * comprobante.totalComprobante : comprobante.totalComprobante;
+                        }
+                        else if (tipoComprobante == "ReciboCobranzas")
+                        {
+                            anterior = 1 * comprobante.totalComprobante;
+
+                        }
+
+                        <tr>
+                            <td>@comprobante.fecha.ToString("dd/MM/yyyy hh:MM")</td>
+                            @if (tipoComprobante == "Factura")
+                            {
+                                <td>
+
+                                    <a @onclick='@(()=>ToggleModal("resumenCuenta"))' href="@($"/BackOffice/Ventas/Factura/{comprobante.Id}")">
+                                        @($"{((Factura)comprobante).TipoComprobante.nombre} {((Factura)comprobante).codigo}" )
+                                    </a>
+                                </td>
+                                <td>@(((Factura)comprobante).EstadoFactura.nombre)</td>
+
+                                <td>@(((Factura)comprobante).TipoComprobante.nombre != "NC" ? $"${comprobante.totalComprobante.ToString()}" : "")</td>
+                                <td>@(((Factura)comprobante).TipoComprobante.nombre == "NC" ? $"${comprobante.totalComprobante.ToString()}" : "")</td>
+                            }
+                            else
+                            {
+
+                                <td>
+
+                                    <a @onclick='@(()=>ToggleModal("resumenCuenta"))' href="@($"/BackOffice/Tesoreria/DetalleReciboCobranza/{comprobante.Id}")">
+                                        @($"REC #{((ReciboCobranzas)comprobante).Id}" )
+                                    </a>
+                                </td>
+                                <td>@(((ReciboCobranzas)comprobante).EstadoRecibo.nombre)</td>
+
+                                <td></td>
+                                <td>@($"{comprobante.totalComprobante}")</td>
+
+                            }
+                            <td>$ @saldo</td>
+
+                        </tr>
+                    }
+                }
+            </table>
+        </Modal>
+
+    </div>
+}
+
+
+@code {
+    [Parameter]
+    public int Id { get; set; }
+    public List<Provincia> provincias { get; set; } = new List<Provincia>();
+    public List<Departamento> departamentos { get; set; } = new List<Departamento>();
+    public List<CategoriaCliente> categorias { get; set; } = new List<CategoriaCliente>();
+
+    public bool error { get; set; } = false;
+    public string errorMessage { get; set; }
+    public Cliente cliente { get; set; }
+    public List<Comprobante> comprobantes { get; set; } = new List<Comprobante>();
+    [Parameter] public EventCallback callback { get; set; }
+
+    public async Task Confimar()
+    {
+
+        cliente.Domicilio.Provincia = null;
+        cliente.Domicilio.Departamento = null;
+        var enviarJSON = JsonSerializer.Serialize(cliente);
+        var enviarContent = new StringContent(enviarJSON, Encoding.UTF8, "application/json");
+        HttpResponseMessage result;
+        if (cliente.Id == 0)
+        {
+
+            result = await http.PostAsync("api/Cliente", enviarContent);
+            if (!result.IsSuccessStatusCode)
+            {
+                error = true;
+                errorMessage = await result.Content.ReadAsStringAsync();
+                errorMessage = errorMessage.Count() > 50 ? "Ocurrió un error" : errorMessage;
+            }
+            else
+            {
+                uri.NavigateTo("/BackOffice/Ventas/ListadoClientes");
+
+            }
+        }
+        else
+        {
+
+            result = await http.PutAsync($"api/Cliente/{cliente.Id}", enviarContent);
+            if (!result.IsSuccessStatusCode)
+            {
+                error = true;
+                errorMessage = await result.Content.ReadAsStringAsync();
+                errorMessage = errorMessage.Count() > 50 ? "Ocurrió un error" : errorMessage;
+            }
+            else
+            {
+                uri.NavigateTo("/BackOffice/Ventas/ListadoClientes");
+            }
+
+        }
+
+
+
+    }
+
+    protected override async Task OnParametersSetAsync()
+    {
+        @if (Id != 0)
+        {
+            cliente = await http.GetJsonAsync<Cliente>($"api/Cliente/{Id}");
+            @if (cliente.Domicilio.Provincia != null)
+            {
+                departamentos = await http.GetJsonAsync<List<Departamento>>($"api/departamento?ProvinciaId={cliente.Domicilio.ProvinciaId}&cantidadDeRegistros=25");
+            }
+            await listarComprobantesClientes();
+            await ActualizarMapa();
+
+        }
+        else
+        {
+            cliente = new Cliente();
+        }
+    }
+    protected override async Task OnInitializedAsync()
+    {
+        provincias = await http.GetJsonAsync<List<Provincia>>("api/provincia?cantidadDeRegistros=25");
+        categorias = await http.GetJsonAsync<List<CategoriaCliente>>("api/CategoriaCliente?cantidadDeRegistros=25");
+
+        provincias = provincias.Where(x => x.eCommerce == true).ToList();
+    }
+    private async Task<UserInfo> DeserializarRespuesta<UserClienteInfo>(HttpResponseMessage httpResponse, JsonSerializerOptions jsonSerializerOptions)
+    {
+        var responseString = await httpResponse.Content.ReadAsStringAsync();
+        return JsonSerializer.Deserialize<UserInfo>(responseString, jsonSerializerOptions);
+    }
+
+    public async Task ChangeProvincia(Provincia provincia)
+    {
+        departamentos = await http.GetJsonAsync<List<Departamento>>($"api/departamento?ProvinciaId={provincia.Id}&cantidadDeRegistros=25");
+        cliente.Domicilio.Provincia = provincia;
+        cliente.Domicilio.ProvinciaId = provincia.Id;
+        cliente.Domicilio.Departamento = null;
+        cliente.Domicilio.DepartamentoId = 0;
+
+
+    }
+    public async Task Eliminar()
+    {
+        await http.DeleteAsync($"api/Cliente/{cliente.Id}");
+        uri.NavigateTo("/BackOffice/Ventas/ListadoClientes");
+
+    }
+    public void ChangeDepartamento(Departamento departamento)
+    {
+        cliente.Domicilio.Departamento = departamento;
+        cliente.Domicilio.DepartamentoId = departamento.Id;
+
+    }
+
+
+    public async Task ActualizarMapa()
+    {
+        if (cliente.Domicilio.numero != 0 && !string.IsNullOrWhiteSpace(cliente.Domicilio.calle) && cliente.Domicilio.Provincia != null && cliente.Domicilio.Departamento != null && !string.IsNullOrWhiteSpace(cliente.Domicilio.Departamento.nombre) && !string.IsNullOrWhiteSpace(cliente.Domicilio.Provincia.nombre))
+        {
+            List<decimal> coords = await js.InvokeAsync<List<decimal>>("buscarCoordenadas", $"{cliente.Domicilio.numero}+{cliente.Domicilio.calle}+{cliente.Domicilio.Departamento.nombre}+{cliente.Domicilio.Provincia.nombre}+Argentina", "map");
+            cliente.Domicilio.latitud = coords[0];
+            cliente.Domicilio.longitud = coords[1];
+
+        }
+        else
+        {
+            Console.WriteLine(cliente.Domicilio.calle);
+            Console.WriteLine("No estan todos los campos completos");
+        }
+
+
+
+    }
+    public async Task listarComprobantesClientes()
+    {
+        if (Id != 0)
+        {
+
+            comprobantes.AddRange(await http.GetJsonAsync<List<Factura>>($"api/factura/facturasPorCliente?clienteId={Id}"));
+            comprobantes.AddRange(await http.GetJsonAsync<List<ReciboCobranzas>>($"api/reciboCobranza/recibosPorCliente?clienteId={Id}"));
+            comprobantes = comprobantes.OrderByDescending(x => x.fecha).ToList();
+        }
+    }
+    public async Task ToggleModal(string id)
+    {
+
+        await js.InvokeAsync<object>("ModalToggle", id);
+    }
+}

@@ -1,0 +1,113 @@
+﻿@inject IRepositorio repostorio
+@inject IJSRuntime js
+@inject HttpClient http
+@inject IToastService toastService
+@attribute [Authorize(Roles = "Admin, Configuracion")]
+
+@if (tipoListaPrecioProvincia != null)
+{
+    <EditForm Model="tipoListaPrecioProvincia" OnValidSubmit="Confirmar">
+        <div>
+            <div class="border-bottom border-secondary my-2 bg-light">
+                <h4 class="">Provincia</h4>
+            </div>
+            <ListadoGenerico listado="provincias">
+                <HayRegistros>
+                    <div>
+                        <select @onchange="@((ChangeEventArgs e)=> {
+                         tipoListaPrecioProvincia.Provincia = provincias.Where(x => x.Id == Convert.ToInt32(e.Value.ToString())).Single();
+                         tipoListaPrecioProvincia.ProvinciaId = Convert.ToInt32(e.Value.ToString());
+                     })">
+
+                            <option selected disabled>-- Seleccione una Provincia --</option>
+                            @foreach (Provincia provincia in provincias)
+                            {
+                                <option selected="@(tipoListaPrecioProvincia.Provincia != null ? (provincia.Id == tipoListaPrecioProvincia.ProvinciaId) : false)"
+                                        value="@provincia.Id">
+                                    @provincia.nombre
+                                </option>
+                            }
+                        </select>
+                    </div>
+                </HayRegistros>
+            </ListadoGenerico>
+
+        </div>
+
+
+
+        <button type="submit" class="btn btn-sm btn-outline-dark btn-block">@accion</button>
+    </EditForm>
+}
+@code {
+    [Parameter] public TipoListaPrecioProvincia tipoListaPrecioProvincia { get; set; }
+    [Parameter] public TipoListaPrecio tipoListaPrecio { get; set; }
+    [Parameter] public string accion { get; set; }
+    [Parameter] public EventCallback callback { get; set; }
+    public List<Provincia> provincias { get; set; }
+
+
+
+    public Provincia categoriaCliente { get; set; }
+
+
+    public async Task<List<Departamento>> searchMethodDeparmantos(string searchText)
+    {
+        var HttpResponse = await repostorio.Get<List<Departamento>>($"/api/departamento?filtro={searchText}&cantidadDeRegistros=10&includeProvincia=True");
+        return HttpResponse.Response;
+    }
+
+    public Provincia CategoriaClienteSeleccionado(Provincia categoriaCliente)
+    {
+        this.tipoListaPrecioProvincia.Provincia = categoriaCliente;
+        this.StateHasChanged();
+        return categoriaCliente;
+    }
+
+    public async Task Confirmar()
+    {
+        try
+        {
+            if (accion == "Crear")
+            {
+                tipoListaPrecioProvincia.TipoListaPrecioId = tipoListaPrecio.Id;
+                tipoListaPrecioProvincia.ProvinciaId = tipoListaPrecioProvincia.Provincia.Id;
+                tipoListaPrecioProvincia.Provincia = null;
+                await http.PostJsonAsync("api/tipoListaPrecioProvincia", tipoListaPrecioProvincia);
+                toastService.ShowSuccess($"Se creó correctamente el Tipo de Lista de Precio {tipoListaPrecio.nombre}");
+
+            }
+            if (accion == "Editar")
+            {
+                await http.PutJsonAsync($"api/tipoListaPrecioProvincia/{tipoListaPrecioProvincia.Id}", tipoListaPrecioProvincia);
+                toastService.ShowSuccess($"Se editó correctamente el Tipo de Lista de Precio {tipoListaPrecio.nombre}");
+
+            }
+        }
+        catch (Exception ex)
+        {
+
+            toastService.ShowError($"Ocurrió un error:  {ex.Message}");
+
+        }
+
+
+        await CloseAllModals();
+
+        await callback.InvokeAsync(new Object());
+
+    }
+    public async Task CloseAllModals()
+    {
+
+        await js.InvokeAsync<object>("CloseAllModals");
+    }
+    protected override async Task OnInitializedAsync()
+    {
+        await ListarProvincias();
+    }
+    public async Task ListarProvincias()
+    {
+        provincias = await http.GetJsonAsync<List<Provincia>>("api/Provincia?cantidadDeRegistros=50");
+    }
+}

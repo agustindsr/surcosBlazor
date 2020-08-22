@@ -1,0 +1,173 @@
+﻿@layout BackOfficeLayout
+@inject HttpClient http
+@inject IJSRuntime js
+@using SurcosBlazor.Client.Repositorio
+@inject IRepositorio  repositorio
+
+<div class="col-md-12 d-flex justify-content-end"><i class="fas fa-times mr-2" style="cursor:pointer" @onclick="@(async()=> await ToggleModal("VendedorPerfil"))"></i></div>
+
+<div class="border-bottom border-secondary my-2">
+    <h2 class="">Vendedor</h2>
+</div>
+@if (vendedores != null && vendedores.Count > 1)
+{
+    <div class="my-3">
+        <SelectGenerico T="Vendedor" TItemActual="vendedor" SelectItem="@(async (Vendedor vendedor)=> { this.vendedor = vendedor; await tablaGenerica.ListarItemsApi(); this.StateHasChanged(); })" TList="vendedores" Label="Vendedores" MostrarDefault="false" Context="Vendedor">
+            <TTemplate>@Vendedor.nombre</TTemplate>
+        </SelectGenerico>
+    </div>
+}
+
+<BotoneraAcciones Context="vendedorContext"
+                  Titem="vendedor"
+                  ElementoSeleccionado="((vendedor) => ElementoSeleccionado(vendedor))"
+                  editar="true"
+                  tamañoModal="modal-lg">
+    <modalContentEditar>
+        <VendedorForm vendedor="vendedor" callback="@(async () => { await ListarVendedor();  })"></VendedorForm>
+    </modalContentEditar>
+
+</BotoneraAcciones>
+
+
+<div class="departamentos mt-4">
+    @if (vendedor == null)
+    {
+        <h2> <strong>No se ha encontrado la vendedor</strong></h2>
+    }
+    else
+    {
+
+        <div class="detalleEntidad my-4 bg-light">
+            <div class="col-md-12 row mx-0 px-0 col-xs-12 justify-content-between">
+
+                <div class="col-md-3 col-xs-4 mt-4 pt-4 offset-md-1">
+                    <div class="col-md-12 col-xs-12 pt-2">
+                        <h4><strong>Id: </strong><span class="">@vendedor.Id</span></h4>
+                    </div>
+                    <div class="col-md-12 col-xs-12 pt-2">
+                        <h4> <strong>Nombre: </strong><span class="">@vendedor.nombre</span></h4>
+                    </div>
+
+
+                    <div class="col-md-12 col-xs-12 pt-2">
+                        <h4> <strong>Fecha Nacimiento: </strong><span>@vendedor.FechaNacimiento.ToString("dd/MM/yyyy")</span></h4>
+                    </div>
+
+                </div>
+                <div class="col-md-4 pt-4 mt-4">
+                    <div class="col-md-12 col-xs-12 pt-2">
+                        <h4> <strong>Celular: </strong><span>@vendedor.numeroCelular</span></h4>
+                    </div>
+                    <div class="col-md-12 col-xs-12 pt-2">
+                        <h4> <strong>Email: </strong><span>@vendedor.email</span></h4>
+                    </div>
+
+                </div>
+                <div class="col-md-4">
+                    <div class="col-md-12 col-xs-12">
+                        <img src="@vendedor.Foto" style="width:200px;height:200px; border-radius:50%" />
+                    </div>
+
+                </div>
+            </div>
+        </div>
+
+        //ZONAS ASIGNADAS
+        <div>
+            <div class="border-bottom border-secondary my-2">
+                <h3 class="">Zonas Asignadas</h3>
+            </div>
+
+
+            <TablaGenerica @key="vendedor" @ref="tablaGenerica"
+                           elementosAmostrar='new List<string[]> {
+                                new string[3]{"Id", "Id","Texto" },
+                                new string[3]{ "Provincia","departamento.Provincia.nombre","Text" },
+                                new string[3]{ "Zona","departamento.nombre","Text" },
+                                new string[3]{ "Lunes","entregaLunes","Checkbox" },
+                                new string[3]{ "Martes","entregaMartes","Checkbox" },
+                                new string[3]{ "Miercoles","entregaMiercoles","Checkbox" },
+                                new string[3]{ "Juves","entregaJueves","Checkbox" },
+                                new string[3]{ "Viernes","entregaViernes","Checkbox" },
+                                new string[3]{ "Sábado","entregaSabado","Checkbox" },
+                                new string[3]{ "Domingo","entregaDomingo","Checkbox" },
+                                }'
+                           acciones="true"
+                           consultaApi='new TablaGenerica<VendedorDepartamento>.ConsultarApi {  baseUrl=$"api/vendedordepartamento?vendedorId={vendedor.Id}&", consultaApi=true, paginacion=true, cantidadDeRegistrosAMostrar=10}'
+                           editar="true"
+                           selectTitem="((VendedorDepartamento vendedorDepartamento)=>VendedorDepartamentoSeleccionado(vendedorDepartamento))">
+
+                <modalContentEditar>
+                    <VendedorDepartamentoForm vendedorDepartamento="vendedorDepartamento" callback="(()=>this.StateHasChanged())"
+                                              vendedor="vendedor">
+                    </VendedorDepartamentoForm>
+                </modalContentEditar>
+
+            </TablaGenerica>
+        </div>
+
+        //DIAS DE ENTREGA
+
+    }
+
+</div>
+
+
+@code {
+
+    public string formulario { get; set; } = "";
+    public Vendedor vendedor { get; set; }
+    public Provincia provincia { get; set; }
+    public VendedorDepartamento vendedorDepartamento { get; set; }
+    public List<Vendedor> vendedores { get; set; }
+    public TablaGenerica<VendedorDepartamento> tablaGenerica { get; set; }
+    [Parameter] public string userName { get; set; }
+
+    public async Task ListarVendedores()
+    {
+        var respuesta = await repositorio.Get<List<Vendedor>>($"api/vendedor/vendedoresHabilitados?userName={userName}");
+        if (!respuesta.Error)
+        {
+            vendedores = respuesta.Response;
+            if (vendedores.Count > 0)
+            {
+                vendedor = vendedores[0];
+                await ListarVendedor();
+            }
+        }
+        this.StateHasChanged();
+
+    }
+    public async Task ListarVendedor()
+    {
+        var responseHttp = await repositorio.Get<Vendedor>($"api/vendedor/{vendedor.Id}");
+        if (!responseHttp.Error)
+        {
+            vendedor = responseHttp.Response;
+        }
+        this.StateHasChanged();
+    }
+
+
+
+
+    public Vendedor ElementoSeleccionado(Vendedor prov)
+    {
+
+        vendedor = prov;
+        this.StateHasChanged();
+        return vendedor;
+    }
+
+
+    public VendedorDepartamento VendedorDepartamentoSeleccionado(VendedorDepartamento vendedorDepartamento)
+    {
+        this.vendedorDepartamento = vendedorDepartamento;
+        return vendedorDepartamento;
+    }
+    public async Task ToggleModal(string id)
+    {
+        await js.InvokeAsync<object>("ModalToggle", id);
+    }
+}

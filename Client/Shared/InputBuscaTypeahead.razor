@@ -1,0 +1,20 @@
+﻿@typeparam T
+
+<CustomTypeahead SearchMethod="@((string value) => SearchMethod(value))"
+                 Value="@sampleItem"
+                 ValueChanged="@((T item) => ElementoSeleccionado(item))">
+    <ResultTemplate>
+        @MyResultTemplate(context)
+    </ResultTemplate>
+</CustomTypeahead>
+
+
+
+@code {
+    [Parameter] public Func<T,T> ElementoSeleccionado { get; set; }
+    [Parameter] public Func<string, Task<IEnumerable<T>>> SearchMethod { get; set; }
+    [Parameter] public RenderFragment<T> MyResultTemplate { get; set; }
+    T sampleItem = default(T);
+
+   
+}

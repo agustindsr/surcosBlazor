@@ -1,0 +1,126 @@
+﻿@inject IJSRuntime js
+@inject IRepositorio repositorio
+
+
+@if (cargando)
+{
+
+    <Loading></Loading>
+}
+<div class="col-md-12 p-4">
+    <div class="col-md-12 d-flex justify-content-between">
+        <h3>Recuperar Contraseña</h3>
+        <div><i class="fas fa-times mr-2" style="cursor:pointer" @onclick="@(async()=> { await ToggleModal("recuperarContraseña"); })"></i></div>
+    </div>
+
+    @if (!String.IsNullOrEmpty(error))
+    {
+        <h4 class="text-center text-danger">@error</h4>
+    }
+    @if (!String.IsNullOrEmpty(success))
+    {
+        <h4 class="text-center text-success">@success</h4>
+    }
+    @if (!envioMail)
+    {
+        <div class="col-md-12 form-group">
+            <label>Email</label>
+            <input class="form-control" @bind="userTokenRecovery.email" />
+
+            <div class="btn btn-block my-3" style="background: #F3743D;color:white;cursor:pointer" @onclick="@(async ()=> { cargando = true; await EstablecerToken(); })">Enviar Token</div>
+        </div>
+    }
+    else if (envioMail && tokenValido == false)
+    {
+        <strong class="my-3 text-center">@userTokenRecovery.email</strong>
+        <div class="col-md-12 form-group">
+            <label>Token</label>
+            <input class="form-control" @bind="userTokenRecovery.token"/>
+
+            <div class="btn btn-block my-3" style="background: #F3743D;color:white;cursor:pointer" @onclick="@(async()=> { cargando = true; await ValidarToken(); })">Validar Token</div>
+
+        </div>
+    }
+    else
+    {
+        <strong class="my-3 text-center">@userTokenRecovery.email</strong>
+        <div class="col-md-12 form-group">
+            <label>Nueva Contraseña</label>
+            <input type="password" class="form-control" />
+
+            <label>Confirmar Contraseña</label>
+            <input type="password" class="form-control" />
+            <div class="btn btn-block my-3" style="background: #F3743D;color:white;cursor:pointer">Cambiar Contraseña</div>
+
+        </div>
+
+    }
+</div>
+@code {
+    public bool envioMail { get; set; }
+    public bool tokenValido { get; set; }
+    public string error { get; set; }
+    public string success { get; set; }
+    public bool cargando { get; set; }
+
+    public UserTokenRecovery userTokenRecovery { get; set; } = new UserTokenRecovery();
+
+    public async Task ToggleModal(string id)
+    {
+        await js.InvokeAsync<object>("ModalToggle", id);
+    }
+
+    public async Task EstablecerToken()
+    {
+        if (String.IsNullOrEmpty(userTokenRecovery.email))
+        {
+            error = "Tienes que introducir un email";
+            success = "";
+        }
+        else
+        {
+            var respuesta = await repositorio.Get<UserTokenRecovery>($"api/Account/EstablecerTokenDeRecuperoDeContraseña?email={userTokenRecovery.email}");
+            cargando = false;
+            if (respuesta.Error)
+            {
+                error = respuesta.HttpResponseMessage.Content.ReadAsStringAsync().Result;
+                success = "";
+            }
+            else
+            {
+                error = "";
+                success = $"Token generado, revisá tu correo";
+
+                envioMail = true;
+            }
+        }
+    }
+
+
+    public async Task ValidarToken()
+    {
+        if (String.IsNullOrEmpty(Convert.ToString(userTokenRecovery.token)))
+        {
+            error = "Tienes que introducir un token";
+            success = "";
+        }
+        else
+        {
+            var respuesta = await repositorio.Get<UserTokenRecovery>($"api/Account/ValidarTokenDeRecuperoDeContraseña?email={userTokenRecovery.email}&token={userTokenRecovery.token}");
+            cargando = false;
+            if (respuesta.Error)
+            {
+                error = respuesta.HttpResponseMessage.Content.ReadAsStringAsync().Result;
+                success = "";
+            }
+            else
+            {
+                error = "";
+                success = $"Token Validado correctamente";
+
+                tokenValido = true;
+            }
+        }
+    }
+
+}

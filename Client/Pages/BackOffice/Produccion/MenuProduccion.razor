@@ -1,0 +1,33 @@
+﻿@page "/BackOffice/Produccion"
+@layout BackOfficeLayout
+@attribute [Authorize(Roles = "Admin, Produccion")]
+
+    <div class="opcionesMenu mt-4">
+
+        <NavLink class="nav-link" href="BackOffice/Produccion/PedidosAProducir" Match="NavLinkMatch.All">
+            <div class="itemMenu">
+                <div class="titulo">
+                    <span>Pedidos a Producir</span>
+                </div>
+            </div>
+        </NavLink>
+        <NavLink class="nav-link" href="BackOffice/Produccion/ListadoOrdenesProduccion" Match="NavLinkMatch.All">
+            <div class="itemMenu">
+                <div class="titulo">
+                    <span>Listado de Ordenes de Producción</span>
+                </div>
+            </div>
+        </NavLink>
+
+        <NavLink class="nav-link" href="BackOffice/Produccion/OrdenProduccion" Match="NavLinkMatch.All">
+            <div class="itemMenu">
+                <div class="titulo">
+                    <span>Nueva Orden de Producción</span>
+                </div>
+            </div>
+        </NavLink>
+
+    </div>
+@code {
+
+}

@@ -1,0 +1,169 @@
+﻿@using System.Net.Http;
+@using System.Text;
+@using System.Text.Json;
+@inject ILoginService loginService
+@inject IToastService toastService
+@inject IRepositorio repositorio
+@using SurcosBlazor.Client.Auth
+@inject HttpClient http;
+@inject IJSRuntime js
+<style>
+
+
+    .wave {
+        display: block;
+        animation: waving 3s infinite;
+    }
+
+
+
+    h2,
+    a {
+        text-align: center;
+    }
+
+    button {
+        font-size: 0.8em;
+        color: var(--white);
+        padding: 1em;
+        margin: 0.5em;
+        border-radius: 5px;
+        border-width: 0px;
+        text-transform: uppercase;
+    }
+
+    input {
+        padding: 1em;
+        border-radius: 0px;
+        border: 0px;
+        border-radius: 5px;
+        background-color: hsl(0, 0%, 95%);
+    }
+
+    .contenedor {
+        display: flex;
+        flex-direction: column;
+        /*max-width: 350px;*/
+        background-color: var(--white);
+        padding: 2em;
+        border-radius: 5px;
+        box-shadow: 0 14px 28px rgba(0, 0, 0, 0.25), 0 10px 10px rgba(0, 0, 0, 0.22);
+        border-top: 10px solid var(--accent-color);
+    }
+
+    .signup {
+        background-color: var(--accent-color);
+    }
+
+        .signup:hover {
+            background-color: var(--dark-accent-color);
+        }
+
+    .login {
+        margin-top: 20px;
+        background-color: var(--main-color);
+    }
+
+        .login:hover {
+            background-color: var(--dark-main-color);
+        }
+
+    .disclaimer {
+        font-size: 0.9em;
+    }
+
+    a {
+        color: var(--main-color);
+    }
+
+        a:hover {
+            color: var(--dark-main-color);
+        }
+</style>
+
+
+@if (cargando)
+{
+    <Loading></Loading>
+}
+
+
+<EditForm Model="userInfo" OnValidSubmit="@(async () => { cargando = true; await LoginUsuario(); })">
+
+    <div class="contenedor">
+        <div class="col-md-12 d-flex justify-content-end"><i class="fas fa-times mr-2" style="cursor:pointer" @onclick="@(async()=> await ToggleModal("login"))"></i></div>
+
+        <h2>Bienvenido! <span class="wave">👋🏾</span></h2>
+
+        @if (error)
+        {
+            <div class="my-3"><strong class="text-danger">@errorMessage</strong></div>
+        }
+        Email:
+        <input type="text" @bind="userInfo.username" />
+
+        Password:
+        <input type="password" @bind="userInfo.Password" />
+
+        <button type="submit" class="login">Ingresar</button>
+
+        <h4 class="mt-4 text-center" style="cursor:pointer" @onclick="@(async() => { await ToggleModal("login");await ToggleModal("recuperarContraseña"); })"><a>¿Olvidaste tu contraseña?</a></h4>
+    </div>
+</EditForm>
+
+@code {
+    private UserInfo userInfo = new UserInfo();
+    public bool error { get; set; } = false;
+    public string errorMessage { get; set; }
+    [Parameter] public Func<int, Task> callback { get; set; }
+    public bool cargando { get; set; } = false;
+    private async Task LoginUsuario()
+    {
+        if (userInfo.username != "" && userInfo.username != null && userInfo.Password != "" && userInfo.Password != null)
+        {
+            try
+            {
+                var enviarJSON = JsonSerializer.Serialize(userInfo);
+                var enviarContent = new StringContent(enviarJSON, Encoding.UTF8, "application/json");
+
+                var result = await http.PostAsync($"api/account/LoginECommerce/", enviarContent);
+                if (result.IsSuccessStatusCode)
+                {
+                    var response = await DeserializarRespuesta<UserClienteInfo>(result, new JsonSerializerOptions() { PropertyNameCaseInsensitive = true });
+                    await loginService.Login(response.userToken.Token);
+                    await callback.Invoke(response.ClienteId);
+                    cargando = false;
+                }
+                else
+                {
+                    cargando = false;
+
+                    error = true;
+                    errorMessage = await result.Content.ReadAsStringAsync();
+
+                }
+            }
+            catch (Exception ex)
+            {
+            }
+
+
+        }
+        else
+        {
+            toastService.ShowError("Usuario o contraseña incorrectos");
+        }
+    }
+    private async Task<UserInfo> DeserializarRespuesta<UserInfo>(HttpResponseMessage httpResponse, JsonSerializerOptions jsonSerializerOptions)
+    {
+        var responseString = await httpResponse.Content.ReadAsStringAsync();
+        return JsonSerializer.Deserialize<UserInfo>(responseString, jsonSerializerOptions);
+    }
+    public async Task ToggleModal(string id)
+    {
+        await js.InvokeAsync<object>("ModalToggle", id);
+    }
+
+
+
+}

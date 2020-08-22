@@ -1,0 +1,43 @@
+﻿@inject IJSRuntime js;
+@if (cargando)
+{ <Loading></Loading>}
+<div class="modal p-0 fade" id="@modalId" data-backdrop="static" tabindex="-1" role="dialog">
+    <div class="modal-dialog " role="document">
+        <div class="modal-content">
+            <div class="modal-header bg-light">
+                <h5 class="modal-title text-center">CONFIRMAR</h5>
+                <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                    <span aria-hidden="true">&times;</span>
+                </button>
+            </div>
+            <div class="modal-body p-3 m-2" data-spy="scroll">
+                @*BODY *@
+                @childContent
+
+            </div>
+                <div class="modal-footer d-flex justify-content-center bg-light">
+                    <button class="btn btn-sm col-md-4 btn-outline-dark" @onclick="@(async ()=> { cargando = true; await confirmFunc.InvokeAsync(new Object()); cargando = false; ; await CloseAllModals(); })">
+                        OK
+                    </button>
+                    <button class="btn btn-sm col-md-4 offset-1 btn-outline-danger" @onclick="@(async ()=> { await CloseAllModals(); })">
+                        CANCELAR
+                    </button>
+                </div>
+
+        </div>
+    </div>
+</div>
+
+
+@code{
+
+    [Parameter] public RenderFragment childContent { get; set; }
+    [Parameter]public string modalId { get; set; } = "modalConfirm";
+    [Parameter]public EventCallback confirmFunc { get; set; }
+    public bool cargando { get; set; }
+    public async Task CloseAllModals()
+    {
+
+        await js.InvokeAsync<object>("CloseAllModals");
+    }
+}

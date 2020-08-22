@@ -1,0 +1,502 @@
+﻿@layout EcommerceLayout
+@inject IJSRuntime js
+@inject AuthenticationStateProvider AuthenticationStateProvider
+@inject NavigationManager uri
+@using SurcosBlazor.Client.Auth
+@using System.Net.Http;
+@using System.Text;
+@using System.Text.Json;
+@inject ILoginService loginService
+@inject IToastService toastService
+@inject IRepositorio repositorio
+@inject HttpClient http
+
+@page "/"
+<div id="landingPage" class="landingPage">
+
+    <div class="navBar">
+        <div class="menu">
+            <div class="opciones" style="cursor:pointer">
+                @if (user.Cliente?.Domicilio?.Provincia != null && user.Cliente?.Domicilio?.Departamento != null)
+                {
+                    <div class="direccionActual" @onclick="@(async ()=>await ToggleModal("direccion"))">
+                        <i class="fas fa-map-marker-alt text-danger mr-2" style="font-size:1.4rem"></i>
+                        @user.Cliente?.Domicilio?.Provincia?.nombre, @user.Cliente?.Domicilio?.Departamento?.nombre
+                    </div>
+                }
+            </div>
+            <div class="usuario">
+
+                <AuthorizeView>
+                    <Authorized>
+
+                        <div class="nav-item dropdown">
+                            <div class="dropdown-toggle" href="#" id="navbarDropdown" role="button" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+                                Hola, @user.Cliente.nombre
+                            </div>
+                            <div class="dropdown-menu" aria-labelledby="navbarDropdown">
+                                <a class="dropdown-item" @onclick="@(async() => { await ListaPedidosCliente?.ListarPedidos(); await ToggleModal("pedidosCliente"); })">Mis Pedidos</a>
+                                <a class="dropdown-item" @onclick="@(async ()=>await ToggleModal("registro"))">Mi Perfil</a>
+
+                                <AuthorizeView Roles="Vendedor">
+                                    <Authorized Context="context1">
+                                        <div class="dropdown-divider"></div>
+                                        <div class="text-center font-weight-bold">VENDEDOR</div>
+                                        <a class="dropdown-item" @onclick="@(async() => {  await ToggleModal("VendedorPerfil"); await VendedorPerfil.ListarVendedores(); })"><i class="far fa-user-circle mr-2"></i>Mi Perfil Vendedor</a>
+
+                                        <a class="dropdown-item" @onclick="@(async() => {  await ToggleModal("pedidosVendedor"); mostrarPedidoVendedor = true; })"><i class="fas fa-money-bill-wave text-success mr-2"></i>Pedidos</a>
+                                    </Authorized>
+
+                                </AuthorizeView>
+                                <AuthorizeView Roles="Admin, Administrativo, Logistica, Produccion">
+                                    <Authorized Context="context2">
+                                        <div class="dropdown-divider"></div>
+
+                                        <a class="dropdown-item" @onclick="@(async ()=>uri.NavigateTo("/BackOffice"))"><i class="fas fa-user-shield mr-1" />Back Office</a>
+
+                                    </Authorized>
+
+                                </AuthorizeView>
+                                <div class="dropdown-divider"></div>
+                                <a class="dropdown-item" href="logout">  <i class="fas fa-sign-out-alt mr-1 text-danger"></i>Salir</a>
+                            </div>
+                        </div>
+                    </Authorized>
+                    <Authorizing>
+                        <strong>Cargando..</strong>
+                    </Authorizing>
+                    <NotAuthorized>
+
+
+                        <div class="mr-3" @onclick="@(async()=> await ToggleModal("registro"))" title="Crear cuenta"><i class="far fa-user-circle mr-2"></i><span class="d-none d-md-inline">Crea tu cuenta</span></div>
+
+                        <div @onclick="@(async()=> await ToggleModal("login"))" title="Ingresar"><i class="fas fa-sign-in-alt mr-2"></i><span class="d-none d-md-inline">Ingresá</span></div>
+
+                    </NotAuthorized>
+
+
+                </AuthorizeView>
+            </div>
+
+
+        </div>
+    </div>
+
+    <div class="swiper-container banner">
+        <div class="swiper-wrapper">
+            @if (banners != null)
+            {
+                @foreach (Banner banner in banners)
+                {
+
+                    <div class="swiper-slide"> <img src="@banner.Foto" /></div>
+
+                }
+            }
+
+
+
+
+
+        </div>
+        <!-- Add Pagination -->
+        <div class="swiper-pagination"></div>
+    </div>
+
+
+</div>
+
+
+<CarritoCompras listaVigente="productosComponente?.lista" estaAutentificado="estaAutentificado"
+                listasHabilitadas="productosComponente?.listas"
+                departamento="user.Cliente.Domicilio?.Departamento"
+                @ref="carrito"
+                Show="ShowCarrito"
+                toggle="toggleCarrito"
+                callback="@this.StateHasChanged"
+                callbackLogin='(async(int id)=> { await LoginCallBack(id);})'>
+</CarritoCompras>
+
+
+
+<Productos @ref="productosComponente"
+           DetallesPedidoActual="carrito?.pedido.detallePedido ?? new List<DetallePedido>()"
+           cantidad="@(carrito?.pedido?.detallePedido.Sum(x => x.cantidad)??0)"
+           provincia="user?.Cliente?.Domicilio.Provincia"
+           clienteId="ClienteId"
+           toggleCarrito="toggleCarrito"
+           addProducto="@(async(ProductoPresentacion prod, int cantidad, int listaId)=> { await carrito.AgregarProducto(prod, cantidad, listaId); this.StateHasChanged();})"
+           deleteProducto="@(async(ProductoPresentacion prod)=> { await carrito.removeFromProducCard(prod); this.StateHasChanged();})"
+           total="@(carrito?.pedido.total??0)"
+           cargarCarritoLocalStorage="RecuperarProductosCarritoFromLocalStorage">
+
+</Productos>
+
+}
+
+<div class="barraContacto">
+    <div class="haceteVendedor">
+        <strong>Hacete vendedor!</strong>
+        <img src="/img/whatsapp.svg" />
+    </div>
+    <div class="redes">
+        <span class="d-none d-md-inline">Contacto </span>
+        @*<span>Encontranos en las redes!</span>*@
+        <a href="https://www.instagram.com/surcosfrutossecos/" target="_blank"><i class="fab fa-instagram"></i></a>
+        <a href="https://www.instagram.com/surcosfrutossecos/" target="_blank"> <i class="fab fa-facebook"></i></a>
+        <a href="https://wa.me/542616687527/?text=Hola!%20te%20escribo%20desde%20la%20web%20de%20Surcos" target="_blank"> <i class="fab fa-whatsapp"></i></a>
+
+
+    </div>
+</div>
+<div class="modal" id="login" tabindex="-1" role="dialog">
+    <div class="modal-dialog modal-md " role="document">
+        <div class="modal-content">
+
+            <div class="modal-body m-0 p-1">
+                <LoginComp callback='@(async(int id)=> { await LoginCallBack(id); await ToggleModal("login");})'></LoginComp>
+            </div>
+
+        </div>
+    </div>
+</div>
+<div class="modal" id="recuperarContraseña" tabindex="-1" role="dialog">
+    <div class="modal-dialog modal-md " role="document">
+        <div class="modal-content">
+
+            <div class="modal-body m-0 p-1">
+                <RecuperarContraseña></RecuperarContraseña>
+            </div>
+
+        </div>
+    </div>
+</div>
+<div class="modal" id="registro" tabindex="-1" role="dialog">
+    <div class="modal-dialog modal-lg " role="document">
+        <div class="modal-content">
+            <div class="modal-body m-0 p-1">
+
+                <UserClienteForm userClienteInfo="user??new UserClienteInfo()" @ref="userClienteFormComponenet" callback='@(async(int id)=> { await LoginCallBack(id); await ToggleModal("registro");})'></UserClienteForm>
+
+            </div>
+
+        </div>
+    </div>
+</div>
+<div class="modal" id="Crear_Usuario" tabindex="-1" role="dialog">
+    <div class="modal-dialog modal-xl " role="document">
+        <div class="modal-content">
+            <div class="modal-body m-2 p-4">
+                <div>
+                    <p>No estas registrado, debes seleccionar un contraseña para crear tu usuario. </p>
+                    <label>Contraseña</label>
+                    <input type="password" name="Contraseña" class="form-control" />
+                    <button class="btn btn-sm btn-info">Crear Usuario</button>
+                </div>
+
+            </div>
+
+        </div>
+    </div>
+</div>
+<AuthorizeView>
+    <Authorized>
+        <div class="modal" id="pedidosCliente" tabindex="-1" role="dialog">
+            <div class="modal-dialog modal-xl " role="document">
+                <div class="modal-content">
+                    <div class="modal-body m-2 p-4">
+
+
+                        <ListaPedidosCliente clienteId="user.Cliente.Id" @ref="ListaPedidosCliente" selectPedido="@(async(int id)=> {await ToggleModal("pedidosCliente");await ToggleModal("PedidoDetalleCliente") ;await PedidoDetalleCliente.buscarPedido(id);})"></ListaPedidosCliente>
+
+                    </div>
+
+                </div>
+            </div>
+        </div>
+
+        <div class="modal" id="PedidoDetalleCliente" tabindex="-1" role="dialog">
+            <div class="modal-dialog modal-xl " role="document">
+                <div class="modal-content">
+                    <div class="modal-body m-2 p-4">
+                        <div class="text-info" style="cursor:pointer" @onclick="@(async ()=>{ await ToggleModal("PedidoDetalleCliente"); await ToggleModal("pedidosCliente");})">Volver al listado de pedidos</div>
+                        <PedidoDetalleCliente @ref="PedidoDetalleCliente"></PedidoDetalleCliente>
+
+                    </div>
+
+                </div>
+            </div>
+        </div>
+    </Authorized>
+</AuthorizeView>
+<AuthorizeView Roles="Vendedor">
+    <Authorized>
+        <div class="modal" id="pedidosVendedor" tabindex="-1" role="dialog">
+            <div class="modal-dialog modal-xl " role="document">
+                <div class="modal-content">
+                    <div class="modal-body m-2 p-4">
+
+                        @if (mostrarPedidoVendedor)
+                        {
+                            <ListadoPedidosVendedorECommerce selectPedido="@(async(int id)=> {await ToggleModal("pedidosVendedor");await ToggleModal("PedidoDetalleVendedor") ;  await PedidoDetalleVendedor.buscarPedido(id); })"></ListadoPedidosVendedorECommerce>
+                        }
+                    </div>
+
+                </div>
+            </div>
+        </div>
+
+        <div class="modal" id="PedidoDetalleVendedor" tabindex="-1" role="dialog">
+            <div class="modal-dialog modal-xl " role="document">
+                <div class="modal-content">
+                    <div class="modal-body m-2 p-4">
+                        <div class="text-info" style="cursor:pointer" @onclick="@(async ()=>{ await ToggleModal("PedidoDetalleVendedor"); await ToggleModal("pedidosVendedor");})">Volver al listado de pedidos</div>
+                        <PedidoDetalleVendedor @ref="PedidoDetalleVendedor"></PedidoDetalleVendedor>
+
+                    </div>
+
+                </div>
+            </div>
+        </div>
+
+
+        <div class="modal" id="VendedorPerfil" tabindex="-1" role="dialog">
+            <div class="modal-dialog modal-xl " role="document">
+                <div class="modal-content">
+                    <div class="modal-body m-2 p-4">
+                        @if (userClaims != null && userClaims.Identity != null && userClaims.Identity.IsAuthenticated)
+                        {
+                            <VendedorPerfil @ref="VendedorPerfil" userName="@userClaims.Identity.Name"></VendedorPerfil>
+
+                        }
+
+                    </div>
+
+                </div>
+            </div>
+        </div>
+    </Authorized>
+
+</AuthorizeView>
+
+<div class="modal" id="direccion" tabindex="-1" role="dialog">
+    <div class="modal-dialog modal-dialog-centered modal-lg" role="document">
+        <div class="modal-content" style="box-shadow:inset 0px 0px 5px #323232">
+            <div class="modal-body m-4 p-0 justify-content-center align-items-center">
+                @if (carrito == null ? false : carrito.pedido?.detallePedido.Count != 0)
+                {
+                    <div class="d-flex justify-content-end"><i class="fas fa-times mx-3" style="cursor:pointer" @onclick='@(async()=>await ToggleModal("direccion"))'></i></div>
+
+                    <h3 class="text-center text-danger"><strong>Para cambiar tu localidad debes vaciar el carrito primero.</strong></h3>
+                }
+                else
+                {
+                    <h3><label><strong>¿Dónde te entregamos?</strong></label></h3>
+                    <div class="col-md-12 mx-0 px-0 row">
+                        <div class="col-md-5 col-xs-12 my-2">
+                            <div class="col-md-12 mx-0 px-0 row align-items-center">
+                                <i class="fas fa-map-marker-alt text-danger col-md-2" style="font-size:1.4rem"></i>
+                                <div class="col-md-10">
+                                    <SelectGenerico Label="Provincia"
+                                                    SelectItem="(async (Provincia prov) => { await ChangeProvincia(prov); })"
+                                                    T="Provincia"
+                                                    TItemActual="user.Cliente.Domicilio.Provincia"
+                                                    TList="provincias"
+                                                    MsjDefault="-- Elija una provincia --" Context="Provincia">
+                                        <TTemplate>
+                                            @Provincia.nombre
+                                        </TTemplate>
+                                    </SelectGenerico>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-5 col-xs-12 my-2 ">
+                            <div class="col-md-12  mx-0 px-0 row align-items-center">
+                                <i class="fas fa-map-signs text-primary col-md-2" style="font-size:1.4rem"></i>
+                                <div class="col-md-10">
+
+                                    <SelectGenerico Label="Departamento" Context="Departamento"
+                                                    SelectItem='(async (Departamento departamento) => { await ChangeDepartamento(departamento); await ToggleModal("direccion"); })'
+                                                    T="Departamento"
+                                                    TItemActual="user.Cliente.Domicilio.Departamento"
+                                                    TList="departamentos"
+                                                    MsjDefault="-- Elija un Departamento --">
+                                        <TTemplate>
+                                            @Departamento.nombre
+                                        </TTemplate>
+                                    </SelectGenerico>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                }
+            </div>
+        </div>
+
+    </div>
+</div>
+
+
+@code {
+
+    public UserClienteInfo user { get; set; } = new UserClienteInfo();
+    public List<Provincia> provincias { get; set; } = new List<Provincia>();
+    public List<Departamento> departamentos { get; set; } = new List<Departamento>();
+    public System.Security.Claims.ClaimsPrincipal userClaims { get; set; }
+    public bool ShowCarrito { get; set; } = false;
+    public CarritoCompras carrito { get; set; }
+    public Provincia provincia { get; set; }
+    public Departamento departamento { get; set; }
+    public int ClienteId { get; set; }
+    public Productos productosComponente { get; set; }
+    public bool mostrarPedidoVendedor { get; set; } = false;
+    public PedidoDetalleVendedor PedidoDetalleVendedor { get; set; }
+    public PedidoDetalleCliente PedidoDetalleCliente { get; set; }
+    public bool estaAutentificado { get; set; } = false;
+    public VendedorPerfil VendedorPerfil { get; set; }
+    public ListaPedidosCliente ListaPedidosCliente { get; set; }
+    public UserClienteForm userClienteFormComponenet { get; set; }
+    public List<Banner> banners { get; set; }
+    protected override async Task OnInitializedAsync()
+    {
+        banners = await http.GetJsonAsync<List<Banner>>("api/banner");
+        await UpdateAuthenticationStateAsync();
+        provincias = await http.GetJsonAsync<List<Provincia>>("api/provincia");
+        provincias = provincias.Where(x => x.eCommerce == true).ToList();
+        await js.InvokeVoidAsync("intersectionObserver");
+
+
+    }
+
+
+    public async Task UpdateAuthenticationStateAsync()
+    {
+        var auth = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+        userClaims = auth.User;
+        estaAutentificado = auth.User.Identity.IsAuthenticated;
+        var clienteId = auth.User.Claims.FirstOrDefault(c => c.Type == "ClienteId");
+        if (clienteId != null)
+        {
+            if (clienteId.Value != "0")
+            {
+                this.ClienteId = Convert.ToInt32(clienteId.Value);
+                await buscarCliente(Convert.ToInt32(clienteId.Value));
+                if (user.Cliente != null)
+                {
+                    await productosComponente.BuscarListas((user?.Cliente?.Domicilio.ProvinciaId ?? 0), user.Cliente.Id);
+                    await carrito.ActualizarParametrosCarrito(user.Cliente, user.Cliente.Domicilio.Provincia, user.Cliente.Domicilio.Departamento);
+                    await userClienteFormComponenet.ActualizarMapa();
+                    await userClienteFormComponenet.BuscarDepartamentos();
+
+                }
+            }
+            else
+            {
+                uri.NavigateTo("/logout");
+            }
+        }
+        else
+        {
+            await getDomicilioFromLocalStorage();
+
+            if (user.Cliente.Domicilio.Provincia == null || user.Cliente.Domicilio.Departamento == null)
+            {
+                await ModalEstatica("direccion");
+            }
+
+        }
+
+        this.StateHasChanged();
+    }
+
+
+    public async Task LoginCallBack(int ClienteId)
+    {
+        await UpdateAuthenticationStateAsync();
+        this.StateHasChanged();
+
+    }
+    public void toggleCarrito()
+    {
+        ShowCarrito = !ShowCarrito;
+    }
+
+    public async Task buscarCliente(int id)
+    {
+
+        user.Cliente = await http.GetJsonAsync<Cliente>($"api/Cliente/{id}");
+        await js.SetInLocalStorage("Provincia", user.Cliente.Domicilio.Provincia.nombre);
+
+        await js.SetInLocalStorage("Departamento", user.Cliente.Domicilio.Departamento.nombre);
+
+    }
+
+    public async Task ChangeProvincia(Provincia provincia)
+    {
+        departamentos = await http.GetJsonAsync<List<Departamento>>($"api/departamento?ProvinciaId={provincia.Id}");
+        this.user.Cliente.Domicilio.Provincia = provincia;
+        this.user.Cliente.Domicilio.ProvinciaId = provincia.Id;
+
+        await js.SetInLocalStorage("Provincia", provincia.nombre);
+        this.user.Cliente.Domicilio.Departamento = null;
+        await productosComponente.BuscarListas((user?.Cliente?.Domicilio.ProvinciaId ?? 0), user?.ClienteId ?? 0);
+
+
+    }
+    public async Task ChangeDepartamento(Departamento departamento)
+    {
+        this.user.Cliente.Domicilio.Departamento = departamento;
+        await js.SetInLocalStorage("Departamento", departamento.nombre);
+        await carrito.ActualizarParametrosCarrito(user.Cliente, user.Cliente.Domicilio.Provincia, user.Cliente.Domicilio.Departamento);
+
+    }
+
+    public async Task goToTienda()
+    {
+        await js.InvokeAsync<object>("goToTienda");
+    }
+    public async Task ToggleModal(string id)
+    {
+        await js.InvokeAsync<object>("ModalToggle", id);
+    }
+
+    public async Task getDomicilioFromLocalStorage()
+    {
+
+        string provincia = await js.GetFromLocalStorage("Provincia");
+        string departamento = await js.GetFromLocalStorage("Departamento");
+        if (!string.IsNullOrEmpty(provincia))
+        {
+            this.user.Cliente.Domicilio.Provincia = await http.GetJsonAsync<Provincia>($"api/provincia/getByName?provinciaNombre={provincia}");
+            this.user.Cliente.Domicilio.ProvinciaId = this.user.Cliente.Domicilio.Provincia.Id;
+            if (this.user.Cliente.Domicilio.Provincia != null)
+            {
+
+                departamentos = await http.GetJsonAsync<List<Departamento>>($"api/departamento?ProvinciaId={this.user.Cliente.Domicilio.Provincia.Id}");
+                await productosComponente.BuscarListas(user?.Cliente?.Domicilio?.Provincia.Id ?? 0, 0);
+                if (!string.IsNullOrEmpty(departamento))
+                {
+                    this.user.Cliente.Domicilio.Departamento = await http.GetJsonAsync<Departamento>($"api/departamento/getByName?departamentoNombre={departamento}");
+                    this.user.Cliente.Domicilio.DepartamentoId = this.user.Cliente.Domicilio.DepartamentoId;
+                    await carrito.ActualizarParametrosCarrito(this.user.Cliente, this.user.Cliente.Domicilio.Provincia, this.user.Cliente.Domicilio.Departamento);
+
+                }
+            }
+
+        }
+
+
+    }
+    public async Task ModalEstatica(string id)
+    {
+        await js.InvokeVoidAsync("ModalEstatica", id);
+    }
+
+
+    public async Task RecuperarProductosCarritoFromLocalStorage()
+    {
+
+        await carrito.RecuperarCarritoLocalStore();
+        this.StateHasChanged();
+    }
+}

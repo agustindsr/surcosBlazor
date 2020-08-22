@@ -1,0 +1,176 @@
+﻿@page "/BackOffice/Tesoreria/DetalleReciboCobranza/{Id:int}"
+@inject HttpClient http
+@layout BackOfficeLayout
+@inject AuthenticationStateProvider authStateProvider
+@inject IRepositorio repositorio
+@inject IToastService toastService
+@inject NavigationManager uri
+@inject IJSRuntime js
+@attribute [Authorize(Roles = "Admin, Tesoreria")]
+
+@if (cargando)
+{
+    <Loading></Loading>
+}
+<nav aria-label="breadcrumb">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item" @onclick="@(() => uri.NavigateTo("BackOffice/Tesoreria"))">Tesoreria</li>
+        <li class="breadcrumb-item" @onclick="@(() => uri.NavigateTo("BackOffice/Tesoreria/ListadoRecibosCobranza"))">Recibos de Cobranza</li>
+        <li class="breadcrumb-item active" aria-current="page" @onclick="@(() => uri.NavigateTo($"BackOffice/Tesoreria/DetalleReciboCobranza/{Id}"))">Detalle Recibo Cobranza</li>
+    </ol>
+</nav>
+<h2>Detalle Recibo Cobranza</h2>
+
+@if (recibo != null)
+{
+
+
+    <div class="p-4" style="box-shadow:1px 1px 3px #323232">
+        <div class="d-flex justify-content-end"><div class="btn btn-sm btn-outline-danger" style="cursor:pointer" @onclick="@(async()=> { await ToggleModal("eliminarConfirm"); })">Eliminar</div></div>
+        <div class="col-md-12 row mx-0">
+            <div class="form-group col-md-6">
+                <label>Cliente</label>
+
+                <div><h2><strong class="badge">#@recibo.ClienteId @recibo.Cliente.nombre, @recibo.Cliente.apellido</strong></h2></div>
+
+            </div>
+            <div class="col-md-6">
+                <label>Fecha</label>
+                <strong>@recibo.fecha.ToString("dd/MM/yyyy HH:mm")</strong>
+            </div>
+        </div>
+    </div>
+    <div class="my-2">
+        <ul class="nav nav-pills mb-3" id="pills-tab" role="tablist">
+            <li class="nav-item">
+                <a class="nav-link active" id="pills-imputaciones-tab" data-toggle="pill" href="#pills-imputaciones" role="tab" aria-controls="pills-imputaciones" aria-selected="true">Imputaciones</a>
+            </li>
+            <li class="nav-item mx-3">
+                <a class="nav-link" id="pills-tesoreria-tab" data-toggle="pill" href="#pills-tesoreria" role="tab" aria-controls="pills-tesoreria" aria-selected="false">Movimientos de Tesorería</a>
+            </li>
+        </ul>
+
+        <div class="tab-content bg-light rounded" id="pills-tabContent">
+            <div class="tab-pane fade show active" id="pills-imputaciones" role="tabpanel" aria-labelledby="pills-imputaciones-tab">
+                <div class="" style="box-shadow:1px 1px 3px #323232">
+                    <table class="table table-sm table-striped">
+                        <thead>
+                            <tr>
+                                <th>Número de comprobante</th>
+                                <th>Estado</th>
+                                <th>Total Comprobante</th>
+                                <th>Total Imputado</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (ImputacionComprobantesVenta imputacion in recibo.Imputaciones)
+                            {
+                                <tr>
+
+                                    <td>@imputacion.FacturaVenta.codigo</td>
+                                    <td>@imputacion.FacturaVenta.EstadoFactura.nombre</td>
+                                    <td>$@imputacion.FacturaVenta.totalComprobante</td>
+                                    <td>
+                                        $ @imputacion.totalImputado
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+
+
+
+                </div>
+            </div>
+            <div class="tab-pane fade" id="pills-tesoreria" role="tabpanel" aria-labelledby="pills-tesoreria-tab">
+
+                <div class="" style="box-shadow:1px 1px 3px #323232">
+                    <table class="table table-sm">
+                        <thead>
+                            <tr>
+                                <th>Caja</th>
+                                <th>Importe</th>
+                            </tr>
+                        </thead>
+                        @foreach (MovimientoCaja movimientoCaja in recibo.movimientosCaja)
+                        {
+                            <tr>
+                                <td>
+                                    @movimientoCaja.Caja.nombre
+                                </td>
+                                <td>
+                                    $@movimientoCaja.totalMovimiento
+                                </td>
+
+                            </tr>
+                        }
+                    </table>
+                </div>
+            </div>
+        </div>
+
+
+    </div>
+
+    <div class="p-4" style="box-shadow:1px 1px 3px #323232">
+        @if (true)
+        {
+            decimal diferencia = recibo.movimientosCaja.Sum(x => x.totalMovimiento) - recibo.Imputaciones.Sum(x => x.totalImputado);
+            <div class="col-md-12"><strong>Total imputado:</strong>$ @recibo.Imputaciones.Sum(x => x.totalImputado) </div>
+            <div class="col-md-12"><strong>Total pagado:</strong>$ @recibo.movimientosCaja.Sum(x => x.totalMovimiento) </div>
+            <div class="col-md-12 @(diferencia > 0 ? "text-success" : "")"><strong>A cuenta: </strong>$  @(diferencia > 0 ? diferencia : 0.00M)</div>
+            <div class="col-md-12 @(diferencia < 0 ? "text-danger" : "")"><strong>Diferencia: </strong>$  @(diferencia < 0 ? diferencia : 0.00M)</div>
+        }
+    </div>
+
+    <ModalConfirm confirmFunc="@(async()=> { cargando = true; await eliminar(); })" modalId="eliminarConfirm">
+
+    </ModalConfirm>
+}
+
+
+@code {
+    public ReciboCobranzas recibo { get; set; }
+    [Parameter] public int Id { get; set; }
+    public bool cargando { get; set; }
+    protected override async Task OnInitializedAsync()
+    {
+        if (Id != 0)
+        {
+            recibo = await http.GetJsonAsync<ReciboCobranzas>($"api/recibocobranza/{Id}");
+        }
+        else
+        {
+            recibo = await http.GetJsonAsync<ReciboCobranzas>($"api/recibocobranza/0");
+        }
+
+    }
+
+    public async Task eliminar()
+    {
+
+        var respuesta = await repositorio.Delete($"api/ReciboCobranza/{recibo.Id}");
+        cargando = false;
+        await ToggleModal("eliminarConfirm");
+
+        @if (!respuesta.Error)
+        {
+            uri.NavigateTo("/BackOffice/Tesoreria");
+            toastService.ShowSuccess("Se eliminó correctamente");
+        }
+        else
+        {
+
+            toastService.ShowError(respuesta.HttpResponseMessage.Content.ReadAsStringAsync().Result);
+
+        }
+
+    }
+
+    public async Task ToggleModal(string id)
+    {
+        await js.InvokeVoidAsync("ModalToggle", id);
+    }
+
+}
+

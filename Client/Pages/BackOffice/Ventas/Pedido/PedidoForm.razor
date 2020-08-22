@@ -1,0 +1,589 @@
+﻿@page "/BackOffice/Ventas/Pedido/{Id:int}"
+@inject IJSRuntime js
+@inject HttpClient http
+@layout BackOfficeLayout
+@inject AuthenticationStateProvider authStateProvider
+@inject IRepositorio repositorio
+@inject IToastService toastService
+@inject NavigationManager uri
+@attribute [Authorize(Roles = "Admin, Ventas")]
+
+
+
+@if (cargando)
+{
+    <Loading></Loading>
+}
+<nav aria-label="breadcrumb">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item" @onclick="@(()=>uri.NavigateTo("BackOffice/Ventas"))">Ventas</li>
+        <li class="breadcrumb-item" @onclick="@(()=>uri.NavigateTo("BackOffice/Ventas/ListadoPedidos"))">Pedidos</li>
+
+        <li class="breadcrumb-item active" aria-current="page" @onclick="@(()=>uri.NavigateTo($"BackOffice/Ventas/DetallePedido/{@pedido.Id}"))">Pedido </li>
+    </ol>
+</nav>
+<div>
+    @if (Id != 0)
+    {
+        <div class="d-flex justify-content-between">
+
+
+            <h3>
+                <strong>Editar Pedido </strong>
+            </h3>
+            <a class="btn btn-sm btn-info" href=@($"/BackOffice/Ventas/ComprobanteDesdePedido/{Id}")>
+                Facturar
+            </a>
+        </div>
+
+
+    }
+    else
+    {
+        <h2>
+            <strong>Nuevo Pedido </strong>
+        </h2>
+    }
+</div>
+@if (pedido != null)
+{
+    <EditForm Model="pedido" OnValidSubmit="@(async() =>{ cargando = true; await CrearPedido(); })">
+        <Blazored.FluentValidation.FluentValidationValidator />
+        <ValidationSummary />
+        <div class="row col-md-12 my-3 mx-0 px-0">
+            <div class="col-md-12 mx-0 px-0">
+                <ul class="nav nav-tabs" id="myTab" role="tablist">
+                    <li class="nav-item">
+                        <a class="nav-link active" id="home-tab" data-toggle="tab" href="#home" role="tab" aria-controls="home" aria-selected="true">Datos Generales</a>
+                    </li>
+
+                    <li class="nav-item">
+                        <a class="nav-link" id="profile-tab" data-toggle="tab" href="#profile" role="tab" aria-controls="profile" aria-selected="false">Direccion de entrega</a>
+                    </li>
+
+                </ul>
+                <div class="tab-content  p-3" id="myTabContent" style="box-shadow:1px 1px 4px #213154; border-radius:5px;">
+                    <div class="tab-pane fade show active" id="home" role="tabpanel" aria-labelledby="home-tab">
+                        <div class="col-md-12 mx-0 px-0 row">
+                            <div class="col-md-3 my-4 mx-0 px-2">
+                                <SelectGenerico Context="Vendedor"
+                                                Label="Vendedor"
+                                                MsjDefault="Seleccione un vendedor"
+                                                T="Vendedor"
+                                                TItemActual="@pedido.Vendedor"
+                                                TList="vendedores" SelectItem="@(async(Vendedor vendedor)=> { pedido.Vendedor = vendedor; pedido.VendedorId = vendedor.Id; await BuscarDepartamentosDeVendedor(); })">
+                                    <TTemplate>
+                                        <div class="d-flex" style="line-height:25px"><img src="@Vendedor.Foto" width="25" height="25" style="border-radius:50%;margin-right:5px;" /> @Vendedor.nombre</div>
+                                    </TTemplate>
+                                </SelectGenerico>
+                            </div>
+                            <div class="col-md-3 my-4 mx-0 px-2">
+                                <label class="col-md-12 mx-0 px-0">Fecha Pedido</label>
+
+                                <input type="date" value="@(pedido.fecha.ToString("yyyy-MM-dd"))" @onchange="@((ChangeEventArgs e)=> pedido.fecha = Convert.ToDateTime(e.Value.ToString()))" />
+                            </div>
+                            <div class="col-md-3 my-4 mx-0 px-2">
+                                <label class="col-md-12 mx-0 px-0">Fecha de Entrega</label>
+                                <input type="date" value="@(pedido.Id != 0 ? pedido.fechaEntrega.ToString("yyyy-MM-dd"): DateTime.Now.ToString("yyyy-MM-dd"))" @onchange="@((ChangeEventArgs e)=> pedido.fechaEntrega = Convert.ToDateTime(e.Value.ToString()))" />
+                            </div>
+                            @if (Id != 0)
+                            {
+                                <div class="col-md-3 my-4 mx-0 px-2">
+                                    <SelectGenerico Label="Estado Pedido" T="EstadoPedido"
+                                                    Context="Estado"
+                                                    SelectItem="((EstadoPedido estado) => {pedido.EstadoPedido = estado; pedido.EstadoPedidoId = estado.Id; })"
+                                                    TItemActual="pedido.EstadoPedido"
+                                                    TList="estadosPedido">
+                                        <TTemplate>@Estado.nombre</TTemplate>
+                                    </SelectGenerico>
+                                </div>
+                            }
+                        </div>
+                        @if (pedido.VendedorId != 0)
+                        {
+                            @*DATOS DEL CLIENTE*@
+                            <h4 class="border-bottom"><strong>Datos del cliente</strong></h4>
+
+                            <div class="row col-md-12 mx-0 my-2 px-2 align-items-center">
+                                <div class="col-md-2 mx-0 pl-0">
+
+                                    <strong>Cliente: </strong>
+                                    @if (pedido.Cliente == null || pedido.Cliente.Id == 0)
+                                    {
+                                        <InputBuscaTypeahead ElementoSeleccionado="((Cliente cliente) => {  clienteSeleccionado(cliente);  return cliente; })" Context="cliente"
+                                                             SearchMethod="(async (string name) => await buscarClientes(name))">
+                                            <MyResultTemplate>
+                                                <div>@cliente.nombre @cliente.Domicilio?.Departamento?.nombre, @cliente.Domicilio?.Provincia?.nombre</div>
+                                            </MyResultTemplate>
+                                        </InputBuscaTypeahead>
+                                    }
+                                    else
+                                    {
+                                        <div class="badge badge-light">@pedido.Cliente.nombre</div><i class="fas fa-times text-danger" style="cursor:pointer" @onclick="(()=> { pedido.Cliente = null;pedido.ClienteId = 0 ; pedido.Domicilio = new Domicilio(); })"></i>
+                                    }
+                                </div>
+                                <div class="col-md-3">
+                                    <InputMaterialize @bind-Value="@pedido.nombreCliente" label="Nombre"></InputMaterialize>
+
+                                </div>
+                                <div class="col-md-2">
+                                    <InputMaterialize @bind-Value="@pedido.apellidoCliente" label="Apellido"></InputMaterialize>
+
+                                </div>
+                                <div class="col-md-3">
+
+                                    <InputMaterialize @bind-Value="@pedido.celularCliente" label="Celular"></InputMaterialize>
+                                </div>
+                                <div class="col-md-2">
+
+                                    <InputMaterialize @bind-Value="@pedido.emailCliente" label="Email"></InputMaterialize>
+                                </div>
+                            </div>
+                        }
+                    </div>
+
+
+                    <div class="tab-pane fade" id="profile" role="tabpanel" aria-labelledby="profile-tab">
+                        <div class="entrega my-2 col-md-12">
+                            @*DIRECCION DE ENTREGA*@
+                            <div class="row col-md-12  px-0 my-3">
+
+                                <div class="col-md-4">
+                                    <SelectGenerico T="Provincia" Context="Provincia" Label="Provincia" TItemActual="pedido.Domicilio?.Provincia" TList="provincias"
+                                                    SelectItem="@(async (Provincia provincia) => { pedido.Domicilio.Provincia = provincia; pedido.Domicilio.ProvinciaId = provincia.Id; await ActualizarMapa(); await ListarListas(); })">
+
+                                        <TTemplate>
+                                            @Provincia.nombre
+                                        </TTemplate>
+                                    </SelectGenerico>
+                                </div><div class="col-md-4">
+
+                                    <SelectGenerico T="Departamento" Context="Localidad" Label="Localidad" TItemActual="pedido.Domicilio?.Departamento" TList="departamentos"
+                                                    SelectItem="@(async (Departamento departamento) => { pedido.Domicilio.Departamento = departamento; pedido.Domicilio.DepartamentoId = departamento.Id; await ActualizarMapa(); })">
+                                        <TTemplate>
+                                            @Localidad.nombre
+                                        </TTemplate>
+                                    </SelectGenerico>
+                                </div>
+                                <div class="col-md-12 row my-2">
+                                    <div class="col-md-4">
+                                        <InputMaterialize label="Calle" @bind-Value="pedido.Domicilio.calle" @onblur="@ActualizarMapa"></InputMaterialize>
+                                    </div>
+                                    <div class="col-md-2">
+                                        <InputMaterialize label="Número" @bind-Value="pedido.Domicilio.numero" @onblur="@ActualizarMapa"></InputMaterialize>
+                                    </div>
+                                    <div class="col-md-2">
+                                        <InputMaterialize label="Piso" @bind-Value="pedido.Domicilio.piso" @onblur="@ActualizarMapa"></InputMaterialize>
+                                    </div>
+                                    <div class="col-md-2">
+                                        <InputMaterialize label="Manzana" @bind-Value="pedido.Domicilio.manzana" @onblur="@ActualizarMapa"></InputMaterialize>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-12 mt-2 bg-secondary" id="mapaPedidoForm" style="height:200px">
+
+                            </div>
+
+                        </div>
+                    </div>
+
+                </div>
+            </div>
+        </div>
+
+
+        <div class="detallesPedido my-4">
+            <div class="col-md-12 row mx-0 p-2 d-flex justify-content-between align-items-center my-2" style="background: linear-gradient(90deg, #262626, #213154);color:white;border-radius:5px;">
+                <h3>Productos (@pedido.detallePedido.Count())</h3>
+                <div class="listasPrecios d-flex align-items-center">
+                    <AuthorizeView Roles="Admin" Context="pedido">
+                        <Authorized>
+                            <span>Modo Admin</span><input type="checkbox" @bind="this.modoAdmin" />
+
+                        </Authorized>
+                    </AuthorizeView>
+                    <div class="mx-2">Lista:</div>
+                    @if (pedido.detallePedido.Count > 0)
+                    {
+                        <strong class="mx-2">@pedido.ListaPrecios.TipoListaPrecio.nombre #@pedido.ListaPrecios.Id</strong>
+                    }
+                    else
+                    {
+
+                        <SelectGenerico T="ListaPrecios" style="color:#262626; background:white;"
+                                        Context="Lista"
+                                        TItemActual="pedido.ListaPrecios"
+                                        TList="listas"
+                                        SelectItem="@(async(ListaPrecios lista)=> { await seleccionarLista(lista.Id); })"
+                                        MsjDefault='- Elije una lista -'>
+                            <TTemplate>@Lista.TipoListaPrecio.nombre #@Lista.Id</TTemplate>
+                        </SelectGenerico>
+                    }
+
+                    @if (pedido.ListaPrecios != null && productos.Count > 0)
+                    {
+                        <div class="btn btn-sm btn-light mx-2" @onclick="@(()=>pedido.detallePedido.Add(new DetallePedido { ProductoPresentacion = new ProductoPresentacion()}))">Agregar</div>
+
+                    }
+
+                </div>
+
+            </div>
+            <table class="table table-sm d-xs-block" style="overflow-x:auto;">
+                <thead>
+                    <tr class="bg-dark text-white p-1 rounded">
+                        <th>Producto</th>
+                        <th>Presentacion</th>
+                        @if (modoAdmin)
+                        {
+                            <th>Costo</th>
+                        }
+                        <th>Cantidad</th>
+                        <th>Precio Unitario</th>
+                        <th>Total</th>
+                        <th></th>
+
+                    </tr>
+                </thead>
+                <tbody>
+
+                    @foreach (DetallePedido detallePedido in pedido.detallePedido)
+                    {
+                        <tr class="">
+                            <td>
+                                @if (detallePedido.ProductoPresentacion.Producto == null)
+                                {
+                                    <InputBuscaTypeahead ElementoSeleccionado="((Producto producto) =>{ detallePedido.ProductoPresentacion.Producto = producto; detallePedido.ProductoPresentacion.ProductoId = producto.Id; this.StateHasChanged(); return producto; } )"
+                                                         Context="Producto"
+                                                         SearchMethod="(async (string name) => {return productos.Where(x => x.nombre.ToUpper().Contains(name.ToUpper())).ToList(); })">
+                                        <MyResultTemplate>
+                                            <div><img class="mx-2" src="@Producto.Foto" style="width:25px; height:25px" />@Producto.nombre</div>
+                                        </MyResultTemplate>
+                                    </InputBuscaTypeahead>
+                                }
+                                else
+                                {
+                                    <div><img class="mx-2" src="@detallePedido.ProductoPresentacion.Producto.Foto" style="height:20px; width:20px;border-radius:50%;" />@detallePedido.ProductoPresentacion.Producto.nombre.ToUpper()</div>
+
+                                }
+                            </td>
+
+                            <td>
+                                @if (detallePedido.ProductoPresentacion.Producto == null)
+                                {
+
+                                }
+                                else
+                                {
+
+                                    <select class="selectPresentaciones" @onchange="((ChangeEventArgs e) => { SelectPresentacionDetalle(Convert.ToInt32(e.Value.ToString()), detallePedido);})">
+                                        <option disabled selected>- Elije una presentación</option>
+                                        @foreach (ProductoPresentacion presentacion in productoPresentaciones.Where(x => x.ProductoId == detallePedido.ProductoPresentacion.ProductoId).ToList())
+                                        {
+                                            @if (detallePedido.ProductoPresentacion.PresentacionProductoId == presentacion.PresentacionProductoId)
+                                            {
+                                                <option selected value="@presentacion.PresentacionProducto.Id">@presentacion.PresentacionProducto.nombre</option>
+
+                                            }
+                                            else
+                                            {
+                                                <option value="@presentacion.PresentacionProducto.Id">@presentacion.PresentacionProducto.nombre</option>
+
+                                            }
+                                        }
+                                    </select>
+
+                                }
+                            </td>
+                            @if (modoAdmin)
+                            {
+                                <th>$@detallePedido.costo</th>
+                            }
+                            <td><input class="form-control-sm" type="number" min="1" step="1" value="@detallePedido.cantidad" @onchange="((ChangeEventArgs e) => { detallePedido.cantidad = Convert.ToInt32(e.Value); CalcularTotal(); })"></td>
+                            @if (modoAdmin)
+                            {
+                                <td><input type="number" step="0.01" @bind="@detallePedido.precioUnitario" @onblur="@(()=> CalcularTotal())" /></td>
+
+                            }
+                            else
+                            {
+
+                                <th>@detallePedido.costo</th>
+                            }
+
+                            <td>$@(detallePedido.precioUnitario * detallePedido.cantidad)</td>
+                            <td><i class="far fa-trash-alt text-danger" @onclick="@(()=>{ pedido.detallePedido.Remove(detallePedido); CalcularTotal(); })"></i></td>
+                        </tr>
+                    }
+                    <tr class="bg-dark text-white rounded">
+                        <th colspan="5"></th>
+
+                        <th class=""><strong>Total:</strong> $@pedido.total</th>
+                        @if (modoAdmin)
+                        {
+                            <th class=""><strong>Ganancia:</strong> $@(pedido.total-pedido.costoTotal)</th>
+
+                        }
+                    </tr>
+                </tbody>
+
+            </table>
+        </div>
+
+        <div class="my-4">
+            <button type="submit" class="btn btn-sm btn-info btn-block">@(Id == 0? "Crear Pedido" : "Editar Pedido")</button>
+        </div>
+
+    </EditForm>
+}
+@code {
+    [Parameter]
+    public int Id { get; set; }
+    public TablaGenerica<Cliente> tablaClientes { get; set; }
+    public Pedido pedido { get; set; }
+    public string userName { get; set; }
+    public List<Vendedor> vendedores { get; set; }
+    public System.Security.Claims.ClaimsPrincipal User { get; set; }
+    public List<Provincia> provincias { get; set; }
+    public List<Departamento> departamentos { get; set; }
+    public CategoriaProducto categoria { get; set; } = new CategoriaProducto();
+    public List<Producto> productos { get; set; }
+    public List<ProductoPresentacion> productoPresentaciones { get; set; }
+    public List<ListaPrecios> listas { get; set; }
+    public List<EstadoPedido> estadosPedido { get; set; }
+    public ListaPrecios lista { get; set; }
+    public bool cargando { get; set; }
+    public bool modoAdmin { get; set; }
+    protected override async Task OnParametersSetAsync()
+    {
+        if (Id != 0)
+        {
+            pedido = await http.GetJsonAsync<Pedido>($"api/Pedido/{Id}");
+            await ListarListas();
+            await BuscarDepartamentosDeVendedor();
+
+        }
+        else { pedido = new Pedido { Domicilio = new Domicilio() }; }
+        if (User.IsInRole("Admin"))
+        {
+            pedido.hechoPorAdmin = true;
+        }
+
+    }
+    public async Task ListarListas()
+    {
+        if (pedido.ClienteId == 0 || pedido.ClienteId == null)
+        {
+            listas = await http.GetJsonAsync<List<ListaPrecios>>($"api/ListaPrecios/ListaPrecioEcommerce?provinciaId={pedido.Domicilio.ProvinciaId}&clienteId=0");
+
+        }
+        else
+        {
+            listas = await http.GetJsonAsync<List<ListaPrecios>>($"api/ListaPrecios/ListaPrecioEcommerce?provinciaId={pedido.Domicilio.ProvinciaId}&clienteId={pedido.ClienteId}");
+
+        }
+
+        if (listas.Count() > 0)
+        {
+            if (lista == null)
+            {
+                await seleccionarLista(pedido.ListaPreciosId != 0 ? pedido.ListaPreciosId : listas[0].Id);
+                cargarProductos();
+                await ActualizarMapa();
+
+            }
+        }
+        else
+        {
+            lista = null;
+            Console.WriteLine("OnParameter hice la lista nula");
+
+        }
+    }
+    public async Task BuscarEstadoPedido()
+    {
+
+        estadosPedido = await http.GetJsonAsync<List<EstadoPedido>>("api/EstadoPedido");
+
+    }
+    public async Task ListarVendedores()
+    {
+        var respuesta = await repositorio.Get<List<Vendedor>>($"api/pedido/vendedoresHabilitados?userName={userName}");
+        if (!respuesta.Error)
+        {
+            vendedores = respuesta.Response;
+        }
+        else
+        {
+            toastService.ShowError(await respuesta.HttpResponseMessage.Content.ReadAsStringAsync());
+        }
+    }
+    protected override async Task OnInitializedAsync()
+    {
+        var authState = await authStateProvider.GetAuthenticationStateAsync();
+        User = authState.User;
+        userName = User.Identity.Name;
+
+        await ListarVendedores();
+        if (Id != 0)
+        {
+            await BuscarEstadoPedido();
+        }
+    }
+    public async Task<List<Cliente>> buscarClientes(string clienteName)
+    {
+        if (User.IsInRole("Admin"))
+        {
+            return await http.GetJsonAsync<List<Cliente>>($"api/Cliente/ClientePorZonaVendedor?filtro={clienteName}&admin=true&vendedorId={pedido.Vendedor.Id}");
+        }
+        else
+        {
+            return await http.GetJsonAsync<List<Cliente>>($"api/Cliente/ClientePorZonaVendedor?filtro={clienteName}&admin=false&vendedorId={pedido.Vendedor.Id}");
+
+        }
+    }
+    public async Task<Cliente> clienteSeleccionado(Cliente cliente)
+    {
+        Console.WriteLine($"cliente selccionado {cliente.Id}");
+        pedido.Cliente = cliente;
+        pedido.ClienteId = cliente.Id;
+        pedido.Domicilio.calle = pedido.Cliente.Domicilio.calle;
+        pedido.Domicilio.numero = pedido.Cliente.Domicilio.numero;
+        pedido.Domicilio.manzana = pedido.Cliente.Domicilio.manzana;
+        pedido.Domicilio.piso = pedido.Cliente.Domicilio.piso;
+        pedido.Domicilio.Provincia = pedido.Cliente.Domicilio.Provincia;
+        pedido.Domicilio.ProvinciaId = pedido.Cliente.Domicilio.ProvinciaId;
+        pedido.Domicilio.Departamento = pedido.Cliente.Domicilio.Departamento;
+        pedido.Domicilio.DepartamentoId = pedido.Cliente.Domicilio.DepartamentoId;
+        pedido.apellidoCliente = pedido.Cliente.apellido;
+        pedido.nombreCliente = pedido.Cliente.nombre;
+        pedido.celularCliente = pedido.Cliente.celular;
+        pedido.emailCliente = pedido.Cliente.email;
+        await ListarListas();
+        this.StateHasChanged();
+        return cliente;
+    }
+
+    public async Task CrearPedido()
+    {
+
+        //creacion de pedido
+        if (Id == 0)
+        {
+            var response = await repositorio.Post<Pedido>("api/Pedido", pedido);
+            cargando = false;
+
+            if (response.Error)
+            {
+                toastService.ShowError(await response.HttpResponseMessage.Content.ReadAsStringAsync());
+            }
+            else
+            {
+
+                toastService.ShowSuccess("Se creó el pedido correctamente!");
+                pedido.detallePedido = new List<DetallePedido>();
+                pedido.Vendedor = new Vendedor();
+                pedido.VendedorId = 0;
+                uri.NavigateTo("/BackOffice/Ventas/ListadoPedidos");
+                this.StateHasChanged();
+            }
+        }
+        //Edicion de pedido
+        else
+        {
+            var response = await repositorio.Put<Pedido>($"api/Pedido/{pedido.Id}", pedido);
+            cargando = false;
+
+            if (response.Error)
+            {
+                toastService.ShowError(await response.HttpResponseMessage.Content.ReadAsStringAsync());
+            }
+            else
+            {
+                toastService.ShowSuccess("Se editó el pedido correctamente!");
+                uri.NavigateTo("/BackOffice/Ventas/ListadoPedidos");
+                this.StateHasChanged();
+            }
+        }
+    }
+    public async Task ToggleModal(string id)
+    {
+
+        await js.InvokeAsync<object>("ModalToggle", id);
+    }
+
+    public async Task BuscarDepartamentosDeVendedor()
+    {
+
+        departamentos = await http.GetJsonAsync<List<Departamento>>($"api/Departamento/DepartamentosDeVendedor?vendedorId={pedido.VendedorId}");
+        provincias = departamentos.Select(x => x.Provincia).Distinct().ToList();
+        this.StateHasChanged();
+    }
+
+    public void cargarProductos()
+    {
+        productoPresentaciones = null;
+        productos = null;
+        productoPresentaciones = lista.DetalleListaPrecios.Select(x => x.ProductoPresentacion).OrderBy(x => x.PresentacionProducto.cantidad).Distinct().ToList();
+        productos = productoPresentaciones.Select(x => x.Producto).Distinct().OrderBy(x => x.nombre).ToList();
+
+    }
+    public async Task seleccionarLista(int id)
+    {
+
+        lista = await http.GetJsonAsync<ListaPrecios>($"api/ListaPrecios/{id}");
+        pedido.ListaPrecios = lista;
+        pedido.ListaPreciosId = lista.Id;
+        cargarProductos();
+
+    }
+    public async Task ActualizarMapa()
+    {
+        if (pedido.Domicilio.numero != 0 && !string.IsNullOrWhiteSpace(pedido.Domicilio.calle) && pedido.Domicilio.Provincia != null && pedido.Domicilio.Departamento != null && !string.IsNullOrWhiteSpace(pedido.Domicilio.Departamento.nombre) && !string.IsNullOrWhiteSpace(pedido.Domicilio.Provincia.nombre))
+        {
+            List<decimal> coords = await js.InvokeAsync<List<decimal>>("buscarCoordenadas", $"{pedido.Domicilio.numero}+{pedido.Domicilio.calle}+{pedido.Domicilio.Departamento.nombre}+{pedido.Domicilio.Provincia.nombre}+Argentina", "mapaPedidoForm");
+            pedido.Domicilio.latitud = coords[0];
+            pedido.Domicilio.longitud = coords[1];
+
+        }
+        else
+        {
+            Console.WriteLine("No estan todos los campos completos");
+        }
+    }
+
+
+    public void SelectPresentacionDetalle(int presentacionId, DetallePedido detalle)
+    {
+
+
+        detalle.ProductoPresentacion = productoPresentaciones
+                                          .FirstOrDefault(x => x.PresentacionProductoId == presentacionId && x.ProductoId == detalle.ProductoPresentacion.ProductoId);
+
+        detalle.ProductoPresentacionId = productoPresentaciones
+                                        .FirstOrDefault(x => x.PresentacionProductoId == presentacionId && x.ProductoId == detalle.ProductoPresentacion.ProductoId).Id;
+
+
+        detalle.precioUnitario = lista.DetalleListaPrecios.FirstOrDefault(x =>
+        {
+            return x.ProductoPresentacion.ProductoId == detalle.ProductoPresentacion.ProductoId
+                   && x.ProductoPresentacion.PresentacionProductoId == detalle.ProductoPresentacion.PresentacionProductoId;
+        }).precioUnitarioFinal;
+        detalle.costo = lista.DetalleListaPrecios.FirstOrDefault(x =>
+        {
+            return x.ProductoPresentacion.ProductoId == detalle.ProductoPresentacion.ProductoId
+                   && x.ProductoPresentacion.PresentacionProductoId == detalle.ProductoPresentacion.PresentacionProductoId;
+        }).precioCosto;
+        CalcularTotal();
+        this.StateHasChanged();
+
+    }
+
+
+    public void CalcularTotal()
+    {
+        pedido.total = pedido.detallePedido.Sum(x => x.precioUnitario * x.cantidad);
+        pedido.costoTotal = pedido.detallePedido.Sum(x => x.costo * x.cantidad);
+
+    }
+}

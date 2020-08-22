@@ -1,0 +1,25 @@
+﻿@page "/BackOffice/Inventario"
+@layout BackOfficeLayout
+@attribute [Authorize(Roles = "Admin, Inventario")]
+
+<div class="opcionesMenu mt-4">
+    <NavLink class="nav-link" href="BackOffice/Inventario/Listado" Match="NavLinkMatch.All">
+        <div class="itemMenu">
+            <div class="titulo">
+                <span>Inventarios</span>
+            </div>
+        </div>
+    </NavLink>
+    <NavLink class="nav-link" href="BackOffice/Inventario/MovimientoInventario/0" Match="NavLinkMatch.All">
+        <div class="itemMenu">
+            <div class="titulo">
+                <span>Movimientos de Inventario</span>
+            </div>
+        </div>
+    </NavLink>
+
+
+</div>
+@code {
+
+}

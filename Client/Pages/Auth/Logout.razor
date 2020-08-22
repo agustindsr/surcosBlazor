@@ -1,0 +1,16 @@
+﻿@page "/logout"
+@using SurcosBlazor.Client.Auth
+@inject ILoginService loginService
+@inject NavigationManager uriHelper
+
+<text>Deslogueando...</text>
+
+@code {
+    protected async override Task OnInitializedAsync()
+    {
+
+        await loginService.Logout();
+      
+        uriHelper.NavigateTo("");
+    }
+}

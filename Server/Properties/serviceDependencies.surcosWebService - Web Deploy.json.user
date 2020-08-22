@@ -1,0 +1,22 @@
+{
+  "dependencies": {
+    "storage1": {
+      "restored": true,
+      "restoreTime": "2020-08-03T17:40:53.6258983Z"
+    },
+    "mssql1": {
+      "restored": true,
+      "restoreTime": "2020-07-30T12:28:27.1109112Z"
+    }
+  },
+  "parameters": {
+    "resourceGroup": {
+      "Type": "resourceGroup",
+      "Value": "Sistema_Surcos"
+    },
+    "subscriptionId": {
+      "Type": "subscription",
+      "Value": "8ada4171-9b6f-42e7-9819-f16298591659"
+    }
+  }
+}

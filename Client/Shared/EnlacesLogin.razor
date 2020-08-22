@@ -1,0 +1,35 @@
+﻿@inject NavigationManager uriHelper
+@inject HttpClient http
+@using Microsoft.AspNetCore.Components.Authorization
+@inject AuthenticationStateProvider AuthenticationStateProvider
+@using System.Timers;
+@inject NavigationManager uriHelper
+<AuthorizeView>
+    <Authorized>
+
+        <span class="item ">
+            Hola, <span class="badge badge-pill"> @context.User.Identity.Name</span>
+        </span>
+
+
+        <a href="Logout" class="ui labeled button" tabindex="0">
+
+            <div class="btn btn-sm bg-danger text-white">
+                <i class="fas fa-sign-out-alt"></i>
+                Salir
+            </div>
+
+        </a>
+    </Authorized>
+    <NotAuthorized>
+        <a href="Login" class="item">Ingresar</a>
+    </NotAuthorized>
+</AuthorizeView>
+
+
+@code{
+
+   
+
+}
+

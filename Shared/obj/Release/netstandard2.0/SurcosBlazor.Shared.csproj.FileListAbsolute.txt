@@ -1,0 +1,9 @@
+C:\Users\agust\source\repos\SurcosBlazor\Shared\bin\Release\netstandard2.0\SurcosBlazor.Shared.deps.json
+C:\Users\agust\source\repos\SurcosBlazor\Shared\bin\Release\netstandard2.0\SurcosBlazor.Shared.dll
+C:\Users\agust\source\repos\SurcosBlazor\Shared\bin\Release\netstandard2.0\SurcosBlazor.Shared.pdb
+C:\Users\agust\source\repos\SurcosBlazor\Shared\obj\Release\netstandard2.0\SurcosBlazor.Shared.csprojAssemblyReference.cache
+C:\Users\agust\source\repos\SurcosBlazor\Shared\obj\Release\netstandard2.0\SurcosBlazor.Shared.csproj.CoreCompileInputs.cache
+C:\Users\agust\source\repos\SurcosBlazor\Shared\obj\Release\netstandard2.0\SurcosBlazor.Shared.AssemblyInfoInputs.cache
+C:\Users\agust\source\repos\SurcosBlazor\Shared\obj\Release\netstandard2.0\SurcosBlazor.Shared.AssemblyInfo.cs
+C:\Users\agust\source\repos\SurcosBlazor\Shared\obj\Release\netstandard2.0\SurcosBlazor.Shared.dll
+C:\Users\agust\source\repos\SurcosBlazor\Shared\obj\Release\netstandard2.0\SurcosBlazor.Shared.pdb

@@ -1,0 +1,218 @@
+﻿@inject HttpClient http
+@inject IJSRuntime js
+@inject IToastService toastService
+@attribute [Authorize(Roles = "Admin, Configuracion")]
+
+@if (cargando)
+{
+    <Loading></Loading>
+}
+@if (formulaProducto != null)
+{
+
+    <EditForm Model="@formulaProducto" OnValidSubmit="@(async() => {cargando = true; await Confirmar();})">
+
+        <h3>@($"{this.productoPresentacion?.Producto.nombre}, {this.productoPresentacion?.PresentacionProducto.nombre}")</h3>
+
+
+        <DataAnnotationsValidator />
+       
+
+        <div>
+            Cantidad de KG/LT a producir: @this.productoPresentacion?.PresentacionProducto.cantidad
+        </div>
+
+
+        @*//INGREDIENTES*@
+        <div class="border-bottom border-secondary my-4 d-flex justify-content-between">
+            <h3 class="">
+                <strong>Ingredientes</strong>
+            </h3>
+            <div class="btn btn-sm btn-light my-1 border border-dark" @onclick="agregarDetalleFormula" style="cursor:pointer">Agregar elemento</div>
+        </div>
+        <ListadoGenerico listado="formulaProducto.DetallesFormula">
+            <HayRegistros>
+                <table class="table table-sm">
+                    <thead>
+                        <tr class="bg-dark text-white">
+                            <th>Producto</th>
+                            <th>Costo</th>
+
+                            <th>Cantidad KG/LT/UNI</th>
+
+                            <th>$</th>
+                            <th></th>
+
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (DetalleFormula detalle in formulaProducto.DetallesFormula)
+                        {
+                            <tr>
+                                <td>
+                                    @if (detalle.ProductoPresentacion?.Id != 0)
+                                    {
+                                        <div class="d-flex">
+                                            <img src="@detalle.ProductoPresentacion?.Producto?.Foto" style="width:30px; height:30px;border-radius:50%" />
+                                            <span class="badge">@detalle.ProductoPresentacion?.Producto?.nombre, @detalle.ProductoPresentacion?.PresentacionProducto?.nombre</span>
+                                        </div>
+                                    }
+                                    else
+                                    {
+                                        <div>
+
+                                            <InputBuscaTypeahead Context="productoPresentacion" T="ProductoPresentacion"
+                                                                 SearchMethod="(async (string filtro) => await BuscarProductos(filtro))"
+                                                                 ElementoSeleccionado="((ProductoPresentacion prod) => {
+                                                                                       detalle.ProductoPresentacion = prod;
+                                                                                       detalle.ProductoPresentacionId = prod.Id;
+                                                                                       this.StateHasChanged();
+                                                                                       return prod;
+                                                                                   })">
+                                                <MyResultTemplate>
+                                                    <img src="@productoPresentacion.Producto.Foto" style="width:30px; height:30px;border-radius:50%" />
+                                                    @productoPresentacion.Producto.nombre, @productoPresentacion.PresentacionProducto.nombre
+                                                </MyResultTemplate>
+                                            </InputBuscaTypeahead>
+                                        </div>
+
+                                    }
+
+
+
+
+                                </td>
+
+                                <td><strong>$ @((detalle.ProductoPresentacion?.costo)?.ToString("0.00"))</strong></td>
+
+                                <td><input class="form-control" type="number" name="cantidad" step="0.0001" @bind="@detalle.cantidad" @bind:event="oninput" /></td>
+
+
+                                <td><strong>$ @((detalle.ProductoPresentacion?.costo * (detalle.cantidad/detalle.ProductoPresentacion?.PresentacionProducto?.cantidad))?.ToString("0.00"))</strong></td>
+
+                                <td>
+                                    <strong>
+                                        <i @onclick="(()=>formulaProducto.DetallesFormula.Remove(detalle))" class="far fa-trash-alt text-danger mr-1" style="cursor:pointer"></i>
+                                    </strong>
+                                </td>
+
+                            </tr>
+
+                        }
+                        <tr class="bg-dark text-white">
+                            <th></th>
+                            <th></th>
+                            <th></th>
+                            <th></th>
+
+                            <th>$ @formulaProducto.total.ToString("0.00") </th>
+
+                        </tr>
+                    </tbody>
+                </table>
+
+            </HayRegistros>
+        </ListadoGenerico>
+
+        <button class="btn-outline-olive btn-block" type="submit">@accion</button>
+    </EditForm>
+}
+@code {
+    [Parameter]
+    public FormulaProducto formulaProducto { get; set; }
+    public bool cargando { get; set; } = false;
+    [Parameter]
+    public string accion { get; set; }
+    [Parameter]
+    public ProductoPresentacion productoPresentacion { get; set; }
+    [Parameter]
+    public EventCallback callback { get; set; }
+
+    public async Task Confirmar()
+    {
+        try
+        {
+            for (int i = formulaProducto.DetallesFormula.Count - 1; i > 0; i--)
+            {
+                if (formulaProducto.DetallesFormula[i].ProductoPresentacion.Id == 0)
+                {
+                    formulaProducto.DetallesFormula.Remove(formulaProducto.DetallesFormula[i]);
+                }
+            }
+            if (accion == "Crear")
+            {
+
+                formulaProducto.ProductoPresentacionId = productoPresentacion.Id;
+                formulaProducto.ProductoPresentacion = null;
+
+                formulaProducto.DetallesFormula.ForEach(x =>
+                {
+                    x.ProductoPresentacion.FormulaProducto = null;
+                    x.ProductoPresentacion.DetallesFormula = null;
+                    x.ProductoPresentacion.PresentacionProducto = null;
+                    x.ProductoPresentacion.Proveedor = null;
+                });
+
+                await http.PostJsonAsync("api/formulaProducto", formulaProducto);
+                await CloseAllModals();
+
+                await callback.InvokeAsync(new Object());
+
+                cargando = false;
+                toastService.ShowSuccess($"Se creó correctamente la formula");
+
+            }
+            if (accion == "Editar")
+            {
+                formulaProducto.ProductoPresentacion = null;
+                formulaProducto.DetallesFormula.ForEach(x => {
+                    x.ProductoPresentacion.DetallesFormula = null;
+
+                    x.ProductoPresentacion.Proveedor = null;
+                });
+
+
+                await http.PutJsonAsync($"api/formulaProducto/{formulaProducto.Id}", formulaProducto);
+                await CloseAllModals();
+
+                await callback.InvokeAsync(new Object());
+
+                cargando = false;
+
+                toastService.ShowSuccess($"Se editó correctamente la formula");
+
+            }
+        }
+        catch (Exception ex)
+        {
+            await callback.InvokeAsync(new Object());
+
+            cargando = false;
+
+            toastService.ShowError($"Ocurrió un error:  {ex.Message}");
+
+        }
+
+
+    }
+    public async Task CloseAllModals()
+    {
+
+        await js.InvokeAsync<object>("CloseAllModals");
+    }
+
+
+
+    public void agregarDetalleFormula()
+    {
+        formulaProducto.DetallesFormula.Add(new DetalleFormula());
+
+    }
+
+    public async Task<List<ProductoPresentacion>> BuscarProductos(string filtro)
+    {
+        return await http.GetJsonAsync<List<ProductoPresentacion>>($"api/ProductoPresentacion/ProductosFormula?filtro={filtro}&cantidadDeRegistros=15");
+    }
+
+
+}

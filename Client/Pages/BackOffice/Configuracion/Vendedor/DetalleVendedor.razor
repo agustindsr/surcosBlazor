@@ -1,0 +1,202 @@
+﻿@layout BackOfficeLayout
+@attribute [Authorize(Roles = "Admin, Configuracion")]
+
+@page "/BackOffice/Configuraciones/Vendedor/{Id:int}"
+@inject HttpClient http
+@inject NavigationManager uri
+@inject IJSRuntime js
+@using SurcosBlazor.Client.Repositorio
+@inject IRepositorio  repositorio
+
+
+    <nav aria-label="breadcrumb">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item" @onclick="@(()=>uri.NavigateTo("/BackOffice/Configuraciones"))">Configuraciones</li>
+            <li class="breadcrumb-item" aria-current="page" @onclick="@(()=>uri.NavigateTo("/BackOffice/Configuraciones/ListadoVendedores"))">Listado Vendedores</li>
+            <li class="breadcrumb-item active" aria-current="page" @onclick="@(()=>uri.NavigateTo($"/BackOffice/Configuraciones/Vendedor/{Id}"))">Detalle Vendedor</li>
+
+        </ol>
+    </nav>
+
+<div class="border-bottom border-secondary my-2">
+    <h2 class="">Vendedor</h2>
+</div>
+
+<BotoneraAcciones Context="vendedorContext"
+                  Titem="vendedor"
+                  ElementoSeleccionado="((vendedor) => ElementoSeleccionado(vendedor))"
+                  editar="true"
+                  eliminar="true" eliminarFunc='(async () => {  EliminarVendedor(vendedor); })'
+                  tamañoModal="modal-lg">
+    <modalContentEditar>
+        <VendedorForm accion="Editar" vendedor="vendedor" callback="@(async () => { await ListarVendedor();  })"></VendedorForm>
+    </modalContentEditar>
+
+</BotoneraAcciones>
+
+
+<div class="departamentos mt-4">
+    @if (vendedor == null)
+    {
+        <h2> <strong>No se ha encontrado la vendedor</strong></h2>
+    }
+    else
+    {
+
+        <div class="detalleEntidad my-4 bg-light">
+            <div class="col-md-12 row mx-0 px-0 col-xs-12 justify-content-between">
+
+                <div class="col-md-3 col-xs-4 mt-4 pt-4 offset-md-1">
+                    <div class="col-md-12 col-xs-12 pt-2">
+                        <h4><strong>Id: </strong><span class="">@vendedor.Id</span></h4>
+                    </div>
+                    <div class="col-md-12 col-xs-12 pt-2">
+                        <h4> <strong>Nombre: </strong><span class="">@vendedor.nombre</span></h4>
+                    </div>
+
+
+                    <div class="col-md-12 col-xs-12 pt-2">
+                        <h4> <strong>Fecha Nacimiento: </strong><span>@vendedor.FechaNacimiento.ToString("dd/MM/yyyy")</span></h4>
+                    </div>
+
+                </div>
+                <div class="col-md-4 pt-4 mt-4">
+                    <div class="col-md-12 col-xs-12 pt-2">
+                        <h4> <strong>Celular: </strong><span>@vendedor.numeroCelular</span></h4>
+                    </div>
+                    <div class="col-md-12 col-xs-12 pt-2">
+                        <h4> <strong>Email: </strong><span>@vendedor.email</span></h4>
+                    </div>
+                    <div class="d-flex col-md-12 col-xs-12 pt-2">
+                        <h4> <strong>Habilitada para E-Commerce: </strong></h4><input type="checkbox" @bind="@vendedor.eCommerce" disabled class="">@(vendedor.eCommerce ? "On" : "Off")
+                    </div>
+                    <div class="d-flex col-md-12 col-xs-12 pt-2">
+                        <h4> <strong>Trabaja Feriado: </strong></h4><input type="checkbox" @bind="@vendedor.trabajaFeriado" disabled class="">@(vendedor.trabajaFeriado ? "On" : "Off")
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="col-md-12 col-xs-12">
+                        <img src="@vendedor.Foto" style="width:200px;height:200px; border-radius:50%" />
+                    </div>
+
+                </div>
+            </div>
+        </div>
+
+        //ZONAS ASIGNADAS
+        <div>
+            <div class="border-bottom border-secondary my-2">
+                <h3 class="">Zonas Asignadas</h3>
+            </div>
+
+            <BotoneraAcciones Context="vendedorDepartamento"
+                              Titem="vendedorDepartamento"
+                              agregar="true">
+                <modalContentAgregar>
+                    <VendedorDepartamentoForm vendedor="vendedor"
+                                              vendedorDepartamento="new VendedorDepartamento()"
+                                              accion="Crear" callback="@(async()=> await tablaGenerica.ListarItemsApi())">
+                    </VendedorDepartamentoForm>
+                </modalContentAgregar>
+            </BotoneraAcciones>
+
+
+            <TablaGenerica @ref="tablaGenerica"
+                           elementosAmostrar='new List<string[]> {
+                                new string[3]{"Id", "Id","Texto" },
+                                new string[3]{ "Provincia","departamento.Provincia.nombre","Text" },
+                                new string[3]{ "Zona","departamento.nombre","Text" },
+                                new string[3]{ "Lunes","entregaLunes","Checkbox" },
+                                new string[3]{ "Martes","entregaMartes","Checkbox" },
+                                new string[3]{ "Miercoles","entregaMiercoles","Checkbox" },
+                                new string[3]{ "Juves","entregaJueves","Checkbox" },
+                                new string[3]{ "Viernes","entregaViernes","Checkbox" },
+                                new string[3]{ "Sábado","entregaSabado","Checkbox" },
+                                new string[3]{ "Domingo","entregaDomingo","Checkbox" },
+                                }'
+                           acciones="true"
+                           consultaApi='new TablaGenerica<VendedorDepartamento>.ConsultarApi {  baseUrl=$"api/vendedordepartamento?vendedorId={vendedor.Id}&", consultaApi=true, paginacion=true, cantidadDeRegistrosAMostrar=10}'
+                           editar="true"
+                           selectTitem="((VendedorDepartamento vendedorDepartamento)=>VendedorDepartamentoSeleccionado(vendedorDepartamento))"
+                           eliminar="true"
+                           eliminarFunc="@(async ()=>await EliminarVendedorDepartamento(vendedorDepartamento))">
+
+                <modalContentEditar>
+                    <VendedorDepartamentoForm vendedorDepartamento="vendedorDepartamento" callback="(()=>this.StateHasChanged())"
+                                              vendedor="vendedor" accion="Editar">
+                    </VendedorDepartamentoForm>
+                </modalContentEditar>
+
+            </TablaGenerica>
+        </div>
+
+        //DIAS DE ENTREGA
+
+    }
+
+</div>
+
+
+@code {
+    [Parameter]
+    public int Id { get; set; } = 0;
+    public string formulario { get; set; } = "";
+    public Vendedor vendedor { get; set; }
+    public Provincia provincia { get; set; }
+    public VendedorDepartamento vendedorDepartamento { get; set; }
+
+    public TablaGenerica<VendedorDepartamento> tablaGenerica { get; set; }
+    protected override async Task OnInitializedAsync()
+    {
+        await ListarVendedor();
+    }
+
+    public async Task ListarVendedor()
+    {
+        var responseHttp = await repositorio.Get<Vendedor>($"api/vendedor/{Id}");
+        if (!responseHttp.Error)
+        {
+            vendedor = responseHttp.Response;
+        }
+
+    }
+    public async Task<List<Provincia>> buscarProvinciasInputTypeAHead(string seachText)
+    {
+
+        return await http.GetJsonAsync<List<Provincia>>($"api/provincia/?filtro={seachText}&cantidadDeRegistros=15");
+    }
+
+
+    public async Task EliminarVendedor(Vendedor vendedor)
+    {
+        vendedor.enabled = false;
+        await http.PutJsonAsync($"api/vendedor/{vendedor.Id}", vendedor);
+        this.vendedor = null;
+
+    }
+
+    public async Task EliminarVendedorDepartamento(VendedorDepartamento vendedorDepartamento)
+    {
+
+
+        await http.DeleteAsync($"api/vendedordepartamento/{vendedorDepartamento.Id}");
+        await ListarVendedor();
+
+    }
+
+    public Vendedor ElementoSeleccionado(Vendedor prov)
+    {
+
+        vendedor = prov;
+        this.StateHasChanged();
+        return vendedor;
+    }
+
+
+    public VendedorDepartamento VendedorDepartamentoSeleccionado(VendedorDepartamento vendedorDepartamento)
+    {
+        this.vendedorDepartamento = vendedorDepartamento;
+        return vendedorDepartamento;
+    }
+
+}

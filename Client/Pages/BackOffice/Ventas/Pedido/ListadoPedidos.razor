@@ -1,0 +1,290 @@
+﻿@page "/BackOffice/Ventas/ListadoPedidos"
+@inject IRepositorio repositorio
+@layout BackOfficeLayout
+@attribute [Authorize(Roles = "Admin, Ventas")]
+@inject AuthenticationStateProvider authStateProvider
+@inject IRepositorio repositorio
+@inject IToastService toastService;
+@inject IJSRuntime js
+@inject NavigationManager uri
+@inject HttpClient http
+
+<nav aria-label="breadcrumb">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item" @onclick="@(()=>uri.NavigateTo("BackOffice/Ventas"))">Ventas</li>
+        <li class="breadcrumb-item active" aria-current="page" @onclick="@(()=>uri.NavigateTo("BackOffice/Ventas/ListadoPedidos"))">Listado Pedidos</li>
+    </ol>
+</nav>
+<div class="listadoPedidos">
+    <div class="d-flex justify-content-between">
+        <h3>Pedidos @(pedidos != null ? $"({registrosTotales})": "")</h3>
+        <div class="d-flex">
+            <AuthorizeView Roles="Admin" Context="listado">
+                <Authorized>
+                    <span>Modo Admin</span><input type="checkbox" @bind="this.modoAdmin" />
+
+                </Authorized>
+            </AuthorizeView>
+            <div class="btn btn-sm btn-olive mx-2" @onclick='(()=>ModalToggle("filtros"))'><i class="fas fa-filter mr-1"></i>Filtros</div>
+            <div class="btn btn-sm btn-olive" @onclick='(()=>uri.NavigateTo("BackOffice/Ventas/Pedido/0"))'>Nuevo Pedido</div>
+
+        </div>
+    </div>
+    <ListadoGenerico listado="pedidos">
+        <HayRegistros>
+            <div class="pedidos my-2">
+                <table class="table table-sm d-xs-block" style="overflow-x:auto;">
+                    <tr>
+                        <th>Nombre</th>
+                        <th>Fecha</th>
+                        <th>Entrega</th>
+                        <th>Localidad</th>
+                        <th>Vendedor</th>
+                        <th>Lista</th>
+                        <th>Total</th>
+                        @if (modoAdmin)
+                        {
+                            <th>Ganancia</th>
+
+                        }
+
+                        <th>Estado</th>
+                        <th>Acciones</th>
+
+                    </tr>
+                    @foreach (Pedido pedido in pedidos)
+                    {
+                        @*@onclick= "@(()=>uri.NavigateTo($" / BackOffice / Ventas / DetallePedido /{ pedido.Id}"))"*@
+                        <tr class="">
+                            <td class="nombre d-flex"><div style="width:15px;height:40px" class="mr-1 @(pedido.EstadoPedido.nombre == "Cancelado" ? "bg-danger" : pedido.EstadoPedido.nombre == "Pendiente" ? "bg-success" : pedido.EstadoPedido.nombre == "Confirmado" ? "bg-info" : "")"></div>@(pedido.nombreCliente), @pedido.apellidoCliente</td>
+                            <td class="fecha">@(pedido.fecha.ToString("dd/MM HH:mm"))</td>
+                            <td class="fechaEntrega">@(pedido.fechaEntrega.ToString("dd/MM"))</td>
+                            <td class="localidad">@($"{pedido.Domicilio?.Provincia?.nombre}, {pedido.Domicilio?.Departamento?.nombre}")</td>
+                            <td class="vendedor"><img src="@pedido.Vendedor.Foto" style="width:25px; height:25px; border-radius:50%;" />@(pedido.Vendedor.nombre)</td>
+                            <td class="lista">@(pedido.ListaPrecios.TipoListaPrecio.nombre)</td>
+                            <td class="total">$@(pedido.total)</td>
+                            @if (modoAdmin)
+                            {
+                                <td>$@(pedido.total - pedido.costoTotal)</td>
+
+                            }
+                            <td class="estado">
+                                <SelectGenerico T="EstadoPedido" Context="Estado" TItemActual="pedido.EstadoPedido" TList="estadosPedido"
+                                                SelectItem="@(async(EstadoPedido estado) => { pedido.EstadoPedido = estado; pedido.EstadoPedidoId = estado.Id; await CambiarEstadoPedido(pedido.Id, estado.Id); })">
+                                    <TTemplate>@Estado.nombre</TTemplate>
+                                </SelectGenerico>
+                            </td>
+                            <td>
+                                <button class="btn" title="Ver Pedido" @onclick="@(()=>uri.NavigateTo($"/BackOffice/Ventas/DetallePedido/{pedido.Id}"))"><i class="far fa-eye"></i></button>
+                                <button class="btn" title="Comprobante" @onclick="@(()=>uri.NavigateTo($"/BackOffice/Ventas/ComprobanteDesdePedido/{pedido.Id}"))">
+                                    <i class="fas fa-file-invoice-dollar"></i>
+                                </button>
+                                <div class="btn" title="Editar" @onclick="@(()=>uri.NavigateTo($"/BackOffice/Ventas/Pedido/{pedido.Id}"))">
+                                    <i class="fas fa-edit"></i>
+                                </div>
+                                <div style="width:20px;height:100%;" class="@(pedido.EstadoPedido.nombre == "Cancelado" ? "bg-danger" : pedido.EstadoPedido.nombre == "Pendiente" ? "bg-success" : pedido.EstadoPedido.nombre == "Confirmado" ? "bg-info" : "")"><span>   </span></div>
+                            </td>
+                        </tr>
+                    }
+                </table>
+
+                <PaginacionComp PaginaActual="paginaActual"
+                                PaginasTotales="paginasTotales"
+                                PaginaSeleccionada="paginaSeleccionada">
+                </PaginacionComp>
+            </div>
+        </HayRegistros>
+
+    </ListadoGenerico>
+</div>
+<Modal modalTitulo="Filtros" modalTamaño="modal-md" modalId="filtros">
+    <div class="filtros my-3">
+
+        <ListadoGenerico listado="vendedores">
+            <HayRegistros>
+                <div class="col-md-12 mx-0 px-0 my-2">
+                    <span class="col-md-12 mx-0 px-0">Vendedores</span>
+                    <select class="col-md-12" @onchange="@(async (ChangeEventArgs e)=> { vendedorIdFiltro = Convert.ToInt32(e.Value.ToString());  })">
+                        <option value="0">Todos</option>
+                        @foreach (Vendedor vendedor in vendedores)
+                        {
+                            <option value="@vendedor.Id">@vendedor.nombre</option>
+                        }
+                    </select>
+                </div>
+            </HayRegistros>
+        </ListadoGenerico>
+
+        <ListadoGenerico listado="provincias">
+            <HayRegistros>
+                <div class="col-md-12 mx-0 px-0 my-2">
+                    <span class="col-md-12 mx-0 px-0">Provincia</span>
+                    <select class="col-md-12" @onchange="@(async (ChangeEventArgs e)=> { provinciaIdFiltro = Convert.ToInt32(e.Value.ToString());  })">
+                        <option value="0">Todas</option>
+                        @foreach (Provincia provincia in provincias)
+                        {
+                            <option value="@provincia.Id">@provincia.nombre</option>
+                        }
+                    </select>
+                </div>
+            </HayRegistros>
+        </ListadoGenerico>
+        <ListadoGenerico listado="tiposListaPrecio">
+            <HayRegistros>
+                <div class="col-md-12 mx-0 px-0 my-2">
+                    <span class="col-md-12 mx-0 px-0">Lista de precios</span>
+                    <select class="col-md-12" @onchange="@(async (ChangeEventArgs e)=> { tipoListaPrecioIdFiltro = Convert.ToInt32(e.Value.ToString());   })">
+                        <option value="0">Todas</option>
+                        @foreach (TipoListaPrecio tipo in tiposListaPrecio)
+                        {
+                            <option value="@tipo.Id">@tipo.nombre</option>
+                        }
+                    </select>
+                </div>
+            </HayRegistros>
+        </ListadoGenerico>
+        <ListadoGenerico listado="tiposListaPrecio">
+            <HayRegistros>
+                <div class="col-md-12 mx-0 px-0 my-2">
+                    <span class="col-md-12 mx-0 px-0">Estado Pedido</span>
+                    <select class="col-md-12" @onchange="@(async (ChangeEventArgs e)=> { estadoPedidoIdFiltro = Convert.ToInt32(e.Value.ToString());  })">
+                        <option value="0">Todas</option>
+                        @foreach (EstadoPedido estado in estadosPedidoFiltro)
+                        {
+                            <option value="@estado.Id">@estado.nombre</option>
+                        }
+                    </select>
+                </div>
+            </HayRegistros>
+        </ListadoGenerico>
+        <ListadoGenerico listado="tiposListaPrecio">
+            <HayRegistros>
+                <div class="col-md-12 mx-0 px-0 my-2">
+                    <span class="col-md-12 mx-0 px-0">Cantidad de registros a mostrar</span>
+                    <select class="col-md-12" @onchange="@(async (ChangeEventArgs e)=> { cantidadDeRegistrosAMostrar = Convert.ToInt32(e.Value.ToString());   })">
+                        <option value="10">10</option>
+                        <option selected value="25">25</option>
+                        <option value="50">50</option>
+                        <option value="100">100</option>
+
+                    </select>
+                </div>
+            </HayRegistros>
+        </ListadoGenerico>
+        <div class="fechaPedido col-md-12 row mx-0 px-0 border-top">
+            <h6 class="col-md-12 mx-0 px-0 my-2">Fecha Pedido <input type="checkbox" /></h6>
+            <div class="col-md-6 ml-0 pl-0">
+
+                <div class="col-md-12 row mx-0 px-0">
+                    <span>Desde</span>
+                </div>
+
+                <input class="col-md-12 row mx-0 px-0" type="date" />
+            </div>
+
+            <div class="col-md-6 ">
+                <div class="col-md-12 row mx-0 px-0">
+                    <span>Hasta</span>
+                </div>
+                <input class="col-md-12 row mx-0 px-0" type="date" />
+            </div>
+        </div>
+
+
+        <div class="fechaEntrega col-md-12 row mx-0 px-0 my-2 border-top">
+            <h6 class="col-md-12 mx-0 px-0">Fecha Entrega <input type="checkbox" /></h6>
+
+            <div class="col-md-6 ml-0 pl-0">
+                <div class="col-md-12 row mx-0 px-0">
+                    <span>Desde</span>
+                </div>
+                <input class="col-md-12 row mx-0 px-0" type="date" />
+            </div>
+            <div class="col-md-6 ">
+                <div class="col-md-12 row mx-0 px-0">
+                    <span>Hasta</span>
+                </div>
+                <input class="col-md-12 row mx-0 px-0" type="date" />
+            </div>
+        </div>
+    </div>
+    <div class="btn btn-sm btn-block btn-olive my-4" @onclick="@(async()=> { await ListarPedidos(); await ModalToggle("filtros"); })">Aplicar Filtros</div>
+</Modal>
+@code {
+    public List<Pedido> pedidos { get; set; }
+    private int paginaActual = 1;
+    private int paginasTotales;
+    private HttpResponseWrapper<List<Pedido>> responseHttp;
+    public List<Vendedor> vendedores { get; set; }
+    public List<Provincia> provincias { get; set; }
+    public List<EstadoPedido> estadosPedidoFiltro { get; set; }
+    public List<EstadoPedido> estadosPedido { get; set; }
+    public bool modoAdmin { get; set; }
+    public List<TipoListaPrecio> tiposListaPrecio { get; set; }
+
+    public string userName { get; set; }
+    public int vendedorIdFiltro { get; set; }
+    public int provinciaIdFiltro { get; set; }
+    public int estadoPedidoIdFiltro { get; set; }
+    public int tipoListaPrecioIdFiltro { get; set; }
+    public int cantidadDeRegistrosAMostrar { get; set; } = 25;
+    public int registrosTotales { get; set; }
+    protected override async Task OnInitializedAsync()
+    {
+
+        var authState = await authStateProvider.GetAuthenticationStateAsync();
+        userName = authState.User.Identity.Name;
+        await ListarPedidos();
+        await ListarVendedores();
+        provincias = pedidos.Select(x => x.Domicilio.Provincia).Where(y => y != null && y.nombre != null && y.Id != 0).Distinct().ToList();
+        estadosPedidoFiltro = pedidos.Select(x => x.EstadoPedido).Where(y => y != null && y.nombre != null && y.Id != 0).Distinct().ToList();
+        estadosPedido = await http.GetJsonAsync<List<EstadoPedido>>("api/estadopedido");
+        tiposListaPrecio = pedidos.Select(x => x.ListaPrecios.TipoListaPrecio).Where(y => y != null && y.nombre != null && y.Id != 0).Distinct().ToList();
+
+    }
+    public async Task ListarVendedores()
+    {
+        var respuesta = await repositorio.Get<List<Vendedor>>($"api/pedido/vendedoresHabilitados?userName={userName}");
+        if (!respuesta.Error)
+        {
+            vendedores = respuesta.Response;
+        }
+        else
+        {
+            toastService.ShowError(await respuesta.HttpResponseMessage.Content.ReadAsStringAsync());
+        }
+    }
+    public async Task ListarPedidos()
+    {
+        responseHttp = await repositorio.Get<List<Pedido>>($"api/pedido?pagina={paginaActual}&cantidadDeRegistros={cantidadDeRegistrosAMostrar}&userName={userName}&vendedorId={vendedorIdFiltro}&provinciaId={provinciaIdFiltro}&estadoPedidoId={estadoPedidoIdFiltro}&tipoListaPrecioId={tipoListaPrecioIdFiltro}");
+        if (!responseHttp.Error)
+        {
+            pedidos = responseHttp.Response;
+
+            registrosTotales = int.Parse(responseHttp.HttpResponseMessage.Headers.GetValues("conteo").FirstOrDefault());
+
+            paginasTotales = int.Parse(responseHttp.HttpResponseMessage.Headers.GetValues("totalPaginas").FirstOrDefault());
+
+        }
+
+
+    }
+    private async Task paginaSeleccionada(int pagina)
+    {
+        paginaActual = pagina;
+        pedidos = null;
+        await ListarPedidos();
+    }
+
+    public async Task ModalToggle(string id)
+    {
+        await js.InvokeVoidAsync("ModalToggle", id);
+    }
+
+    public async Task CambiarEstadoPedido(int pedidoId, int estadoId)
+    {
+
+        await http.GetAsync($"api/pedido/CambiarEstadoPedido?pedidoId={pedidoId}&estadoId={estadoId}");
+        toastService.ShowSuccess("Se cambió el estado correctamente");
+    }
+}

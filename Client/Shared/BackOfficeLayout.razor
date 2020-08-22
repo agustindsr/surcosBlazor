@@ -1,0 +1,41 @@
+﻿@inherits LayoutComponentBase
+@inject NavigationManager uri
+    <style>
+        body {
+            overflow-y: auto !important;
+        }
+    </style>
+<AuthorizeView Roles="Admin, Administrativo, Logistica, Produccion">
+    <Authorized>
+        <div class="sidebar @(toggleNavBar ? "toggle" : "")">
+            <div class="toggleNavBar @(toggleNavBar ? "toggle" : "")" @onclick="@(()=>toggleNavBar = !toggleNavBar)">
+                <i class="@(toggleNavBar ? "fas fa-stream":"fas fa-bars")"></i>
+            </div>
+
+            <NavMenu />
+            <div class="pl-1 enlacesLogin">
+                <EnlacesLogin></EnlacesLogin>
+            </div>
+        </div>
+
+        <div class="main">
+            <div class="content px-4">
+                @Body
+            </div>
+        </div>
+        <BlazoredToasts IconType="IconType.FontAwesome"
+                        SuccessClass="success-toast-override"
+                        Timeout="5"
+                        SuccessIcon="fa fa-check"
+                        ErrorIcon="fa fa-times"
+                        InfoIcon="fa fa-info"
+                        WarningIcon="fa fa-warning" />
+    </Authorized>
+    <NotAuthorized>
+        <h2 style="text-align:center;">Ups no estás autorizado! <a href="/">Volver</a></h2>
+    </NotAuthorized>
+</AuthorizeView>
+
+@code{
+    public bool toggleNavBar { get; set; } = false;
+}

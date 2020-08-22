@@ -1,0 +1,165 @@
+﻿@page "/BackOffice/Compras/ComprobanteCompras/{Id:int}"
+@inject IJSRuntime js
+@inject HttpClient http
+@layout BackOfficeLayout
+@inject AuthenticationStateProvider authStateProvider
+@inject IRepositorio repositorio
+@inject IToastService toastService
+@inject NavigationManager uri
+@attribute [Authorize(Roles = "Admin, Compras")]
+
+
+<nav aria-label="breadcrumb">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item" @onclick="@(()=>uri.NavigateTo("BackOffice/Compras"))">Compras</li>
+        <li class="breadcrumb-item" @onclick="@(()=>uri.NavigateTo("BackOffice/Compras/ListadoComprobantes"))">Listado Comprobantes</li>
+        <li class="breadcrumb-item active" aria-current="page" @onclick="@(()=>uri.NavigateTo($"BackOffice/Compras/ComprobanteCompras/{Id}"))">Detalle Comprobante</li>
+    </ol>
+</nav>
+<h2>Comprobante de Compra</h2>
+@if (factura != null)
+{
+    <div class="row col-md-12 my-3 mx-0 p-2" style="box-shadow:1px 1px 3px #323232">
+
+        <div class="col-md-12 mx-0 my-4 px-0 row d-flex justify-content-between">
+            <h3><strong class="text-info">@factura.TipoComprobante.nombre @factura.codigo</strong></h3>
+            <div class="col-md-3 mx-0 px-2">
+                <strong>Estado: </strong><span>@factura.EstadoFactura.nombre</span>
+            </div>
+        </div>
+        <div class="col-md-12 mx-0 px-0 row my-2">
+
+            <div class="col-md-3  mx-0 px-2">
+                <strong>Depósito: </strong><span>@factura.Deposito.nombre</span>
+            </div>
+            <div class="col-md-3  mx-0 px-2">
+                <strong>Fecha Comprobante: </strong><span>
+                    @factura.fecha.ToString("yyyy-MM-dd HH:mm")
+                </span>
+
+            </div>
+
+
+        </div>
+
+        @*DATOS DEL CLIENTE*@
+        <h3 class="border-bottom mt-3 text-info"><strong>Proveedor</strong></h3>
+
+        <div class="row col-md-12 mx-0 my-1 px-2 align-items-center">
+            <div class="col-md-5 mx-0 pl-0">
+
+                <strong>Razón Social: </strong>
+
+
+                <a href=@($"/BackOffice/Compras/Proveedor/{factura.ProveedorId}")>#@factura.ProveedorId @factura.Proveedor.razonSocial</a>
+
+
+
+            </div>
+
+
+
+
+        </div>
+
+    </div>
+
+
+
+
+    <div class="detallesFactura my-4">
+        <div class="col-md-12 row mx-0 p-2 d-flex justify-content-between align-items-center my-2" style="background: linear-gradient(90deg, #262626, #213154);color:white;border-radius:5px;">
+            <h3>Productos (@factura.detallesFactura.Count())</h3>
+
+        </div>
+        <table class="table table-sm d-xs-block" style="overflow-x:auto;">
+            <thead>
+                <tr class="bg-dark text-white p-1 rounded">
+                    <th>Producto</th>
+                    <th>Presentacion</th>
+                    <th>Cantidad</th>
+                    <th>Precio Unitario</th>
+                    <th>Total</th>
+                </tr>
+            </thead>
+            <tbody>
+
+                @foreach (DetalleFacturaCompras detallesFactura in factura.detallesFactura)
+                {
+                    <tr class="">
+                        <td>
+
+
+                            <div><img class="mx-2" src="@detallesFactura.ProductoPresentacion.Producto.Foto" style="height:20px; width:20px;border-radius:50%;" />@detallesFactura.ProductoPresentacion.Producto.nombre.ToUpper()</div>
+
+
+                        </td>
+
+                        <td>
+
+
+                            <strong> @detallesFactura.ProductoPresentacion.PresentacionProducto.nombre</strong>
+                        </td>
+
+                        <td>@detallesFactura.cantidad</td>
+
+                        <td>@detallesFactura.precioUnitario</td>
+
+                        <td>$@(detallesFactura.precioUnitario * detallesFactura.cantidad)</td>
+                    </tr>
+                }
+                <tr class="bg-dark text-white rounded">
+                    <th colspan="4"></th>
+
+                    <th class=""><strong>Total:</strong> $@factura.totalComprobante</th>
+                </tr>
+            </tbody>
+
+        </table>
+    </div>
+
+}
+@code {
+    [Parameter]
+    public int Id { get; set; }
+    public FacturaCompras factura { get; set; }
+    public string userName { get; set; }
+    public System.Security.Claims.ClaimsPrincipal User { get; set; }
+
+
+
+    public ListaPrecios lista { get; set; }
+
+    protected override async Task OnParametersSetAsync()
+    {
+        if (Id != 0)
+        {
+            factura = await http.GetJsonAsync<FacturaCompras>($"api/FacturaCompra/{Id}");
+        }
+    }
+
+
+
+    protected override async Task OnInitializedAsync()
+    {
+        var authState = await authStateProvider.GetAuthenticationStateAsync();
+        User = authState.User;
+        userName = User.Identity.Name;
+    }
+
+    public async Task ToggleModal(string id)
+    {
+
+        await js.InvokeAsync<object>("ModalToggle", id);
+    }
+
+
+
+
+
+
+
+
+
+
+}

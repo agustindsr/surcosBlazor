@@ -1,0 +1,31 @@
+﻿<style>
+    .loading {
+        width:100vw;
+        height:100vh;
+        position:fixed;
+        top:0;
+        left:0;
+        z-index:1000000;
+        background: rgba(0,0,0,.8);
+
+    }
+        .loading .gif {
+            position:relative;
+            top:50%;
+            left:50%;
+            width:200px;
+            height:200px;
+            transform:translate(-50%,-50%);
+        }
+</style>
+
+<div class="loading">
+    <div class="gif">
+        <div><img src="/img/loading2.gif" /></div>
+        <div class="text-white text-center"><strong>Cargando...</strong></div>
+    </div>
+
+</div>
+@code {
+
+}

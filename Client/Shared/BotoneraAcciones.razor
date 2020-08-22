@@ -1,0 +1,110 @@
+﻿@typeparam T
+@inject IJSRuntime js
+@inject IToastService ToastService
+<style>
+
+</style>
+<div class="botoneraAcciones">
+    <div class="d-flex">
+        @if (agregar)
+        {
+            <button class="btn" title="Agregar" @onclick="@click_boton_agregar">
+                <i class="fas fa-plus-circle text-primary mr-1"></i><strong class="text-white">AGREGAR</strong>
+            </button>
+            <Modal modalTitulo="Agregar" modalId="@modalIdCrear" modalTamaño="@tamañoModal">
+                @modalContentAgregar 
+            </Modal>
+        }
+        @if (editar)
+        {
+            <button class="btn" title="Editar" disabled="@(Titem == null ? true: false)" @onclick="@click_boton_editar">
+                <i class="fas fa-edit text-warning mr-1"></i><strong class="text-white">EDITAR</strong>
+            </button>
+
+            <Modal modalTitulo="Editar" modalId="@modalIdEditar" modalTamaño="@tamañoModal">
+                @modalContentEditar
+            </Modal>
+        }
+        @if (eliminar)
+        {
+            <button class="btn" title="Eliminar" disabled="@(Titem == null ? true: false)" @onclick="@click_boton_eliminar">
+                <i class="far fa-trash-alt text-danger mr-1"></i><strong class="text-white">ELIMINAR</strong>
+            </button>
+        }
+        @if (buscar)
+        {
+            <div class="">
+                <CustomTypeahead SearchMethod="@((string value) => SearchMethod(value))"
+                                 Value="@sampleItem"
+                                 ValueChanged="@((T item) => ElementoSeleccionado(item))"
+                                 Placeholder="Buscar ...">
+                    <ResultTemplate>
+                        @MyResultTemplate(context)
+                    </ResultTemplate>
+                </CustomTypeahead>
+            </div>
+        }
+    </div>
+</div>
+@if (eliminar)
+{
+    <ModalConfirm modalId="@modalIdEliminar" confirmFunc='(async() => { await eliminarFunc.InvokeAsync(new Object()); })'>
+        <childContent>
+            <p>¿Estas seguro que desear realizar esta eliminación? Una vez hecho no habrá vuelta atrás</p>
+        </childContent>
+    </ModalConfirm>
+}
+
+@*<ModalConfirm confirmFunc="(()=>Eliminar())">
+        <p>¿Está seguro que desea realizar estos cambios?</p>
+    </ModalConfirm>*@
+
+
+@code{
+    [Parameter] public T Titem { get; set; }
+    [Parameter] public Func<T, T> ElementoSeleccionado { get; set; }
+    [Parameter] public Func<string, Task<IEnumerable<T>>> SearchMethod { get; set; }
+    [Parameter] public EventCallback eliminarFunc { get; set; }
+
+    //[Parameter] public Func<T> Eliminar { get; set; }
+
+    [Parameter] public RenderFragment<T> MyResultTemplate { get; set; }
+    [Parameter] public RenderFragment modalContentAgregar { get; set; }
+    [Parameter] public string tamañoModal { get; set; } = "modal-md";
+
+    [Parameter] public RenderFragment modalContentEditar { get; set; }
+    [Parameter] public bool editar { get; set; } = false;
+    [Parameter] public bool agregar { get; set; } = false;
+    [Parameter] public bool eliminar { get; set; } = false;
+    [Parameter] public bool buscar { get; set; } = false;
+    [Parameter] public string modalIdEditar { get; set; } = "modalEditarBotonera";
+    [Parameter] public string modalIdCrear { get; set; } = "modalCrearBotonera";
+    [Parameter] public string modalIdEliminar { get; set; } = "modalEliminarBotonera";
+
+    T sampleItem = default(T);
+
+
+    public async Task click_boton_agregar()
+    {
+        await abrirModal(modalIdCrear);
+    }
+    public async Task click_boton_editar()
+    {
+        await abrirModal(modalIdEditar);
+    }
+
+    public async Task click_boton_eliminar()
+    {
+        await abrirModal(modalIdEliminar);
+    }
+
+
+    public async Task abrirModal(string id)
+    {
+
+        await js.InvokeAsync<object>("ModalToggle", id);
+    }
+
+
+
+}

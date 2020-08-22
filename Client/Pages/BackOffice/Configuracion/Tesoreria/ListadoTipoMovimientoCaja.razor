@@ -1,0 +1,63 @@
+﻿@layout BackOfficeLayout
+@attribute [Authorize(Roles = "Admin, Configuracion")]
+
+@page "/BackOffice/Configuraciones/ListadoTipoMovimientoCaja"
+@inject HttpClient http
+@inject NavigationManager uri
+<nav aria-label="breadcrumb">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item" @onclick="@(()=>uri.NavigateTo("/BackOffice/Configuraciones"))">Configuraciones</li>
+        <li class="breadcrumb-item active" aria-current="page" @onclick="@(()=>uri.NavigateTo("/BackOffice/Configuraciones/ListadoTipoMovimientoCaja"))">Listado Tipos Movimiento de Caja</li>
+    </ol>
+</nav>
+<div>
+    <div class="border-bottom border-secondary my-2">
+        <h2 class="">Tipos Movimiento de Caja</h2>
+    </div>
+    <BotoneraAcciones T="TipoMovimientoCaja" agregar="true">
+        <modalContentAgregar>
+            <TipoMovimientoCajaForm tipoMovimientoCaja="new TipoMovimientoCaja()" callback="(async() => {this.StateHasChanged();await tablaGenerica.ListarItemsApi(); })"
+                                    accion="Crear">
+            </TipoMovimientoCajaForm>
+        </modalContentAgregar>
+    </BotoneraAcciones>
+    <TablaGenerica @ref="tablaGenerica"
+                   elementosAmostrar='new List<string[]> {
+                                new string[3]{"Id", "Id","Texto" },
+                                new string[3]{ "Nombre","nombre","Text" }}'
+                   acciones="true"
+                   consultaApi='new TablaGenerica<TipoMovimientoCaja>.ConsultarApi {  baseUrl=$"api/tipoMovimientoCaja?", consultaApi=true, paginacion=true, cantidadDeRegistrosAMostrar=25}'
+                   editar="true"
+                   selectTitem="((TipoMovimientoCaja tipoMovimientoCaja)=>ElementoSeleccionado(tipoMovimientoCaja))"
+                   eliminar="true"
+                   eliminarFunc="@(async ()=>await EliminarTipoMovimientoCaja(tipoMovimientoCaja))">
+
+        <modalContentEditar>
+            <TipoMovimientoCajaForm tipoMovimientoCaja="tipoMovimientoCaja" callback="(()=>this.StateHasChanged())"
+                                    accion="Editar">
+            </TipoMovimientoCajaForm>
+        </modalContentEditar>
+
+    </TablaGenerica>
+</div>
+@code {
+    public TipoMovimientoCaja tipoMovimientoCaja { get; set; }
+    public TablaGenerica<TipoMovimientoCaja> tablaGenerica { get; set; }
+
+
+    public async Task EliminarTipoMovimientoCaja(TipoMovimientoCaja tipoMovimientoCaja)
+    {
+        await http.DeleteAsync($"api/tipoMovimientoCaja/{tipoMovimientoCaja.Id}");
+        this.tipoMovimientoCaja = null;
+
+    }
+
+
+    public TipoMovimientoCaja ElementoSeleccionado(TipoMovimientoCaja tipoMovimientoCaja)
+    {
+
+        this.tipoMovimientoCaja = tipoMovimientoCaja;
+        this.StateHasChanged();
+        return tipoMovimientoCaja;
+    }
+}

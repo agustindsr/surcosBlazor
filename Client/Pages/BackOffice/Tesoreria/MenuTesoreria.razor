@@ -1,0 +1,47 @@
+﻿@page "/BackOffice/Tesoreria"
+@layout BackOfficeLayout
+@attribute [Authorize(Roles = "Admin, Tesoreria")]
+
+<div class="opcionesMenu mt-4">
+    <NavLink class="nav-link" href="BackOffice/Tesoreria/ListadoCajas" Match="NavLinkMatch.All">
+        <div class="itemMenu">
+            <div class="titulo">
+                <span>Cajas</span>
+            </div>
+        </div>
+    </NavLink>
+    <NavLink class="nav-link" href="/BackOffice/Tesoreria/ListadoRecibosCobranza" Match="NavLinkMatch.All">
+        <div class="itemMenu">
+            <div class="titulo">
+                <span>Listado Recibos de Cobranza</span>
+            </div>
+        </div>
+    </NavLink>
+    <NavLink class="nav-link" href="BackOffice/Tesoreria/ReciboCobranza" Match="NavLinkMatch.All">
+        <div class="itemMenu">
+            <div class="titulo">
+                <span>Recibo de Cobranza</span>
+            </div>
+        </div>
+    </NavLink>
+
+    <NavLink class="nav-link" href="BackOffice/Tesoreria/ListadoOrdenesPago" Match="NavLinkMatch.All">
+        <div class="itemMenu">
+            <div class="titulo">
+                <span>Listado de Ordenes de Pago</span>
+            </div>
+        </div>
+    </NavLink>
+    <NavLink class="nav-link" href="BackOffice/Tesoreria/OrdenPago" Match="NavLinkMatch.All">
+        <div class="itemMenu">
+            <div class="titulo">
+                <span>Orden de Pago</span>
+            </div>
+        </div>
+    </NavLink>
+
+
+</div>
+@code {
+
+}

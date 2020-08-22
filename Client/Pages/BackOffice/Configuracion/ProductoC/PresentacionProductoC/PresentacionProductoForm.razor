@@ -1,0 +1,97 @@
+﻿@inject HttpClient http
+@inject IJSRuntime js
+@inject IToastService toastService
+@attribute [Authorize(Roles = "Admin, Configuracion")]
+
+@if (cargando)
+{
+    <Loading></Loading>}
+@if (presentacionProducto != null)
+{
+
+    <EditForm Model="@presentacionProducto" OnValidSubmit="@(async()=>{cargando=true; await Confirmar();})">
+        <DataAnnotationsValidator />
+        <div class="form-group">
+            <label>Nombre</label>
+            <input class="form-control" @bind="@presentacionProducto.nombre" />
+            <ValidationMessage For="(()=>presentacionProducto.nombre)"></ValidationMessage>
+        </div>
+        <div class="form-group">
+            <label>Cantidad en Kilogramos/Litros. Ej</label>
+            <input class="form-control" placeholder="Ej. Bolsa 250grs - 0,25" type="number" step="0.001" @bind-value="@presentacionProducto.cantidad">
+
+            <ValidationMessage For="(()=>presentacionProducto.cantidad)"></ValidationMessage>
+        </div>
+        <div class="form-group">
+            <RadioButtonGeneric T="Unidad"
+                                OnChangeFunction="((Unidad unidad)=>RadioUnidadChange(unidad))"
+                                propAMostrar="nombre"
+                                ListarItems="(async()=> await ListarUnidades())"
+                                item="presentacionProducto.Unidad != null ? presentacionProducto.Unidad : null">
+            </RadioButtonGeneric>
+        </div>
+        <button class="btn-outline-olive btn-block" type="submit">@accion</button>
+    </EditForm>
+}
+@code {
+    [Parameter] public PresentacionProducto presentacionProducto { get; set; }
+    [Parameter]
+    public string accion { get; set; }
+    [Parameter]
+    public EventCallback callback { get; set; }
+    public bool cargando { get; set; }
+    public async Task Confirmar()
+    {
+        try
+        {
+            if (accion == "Crear")
+            {
+                Console.WriteLine("me estoy intentado Crears");
+                await http.PostJsonAsync("api/PresentacionProducto", presentacionProducto);
+                cargando = false;
+
+                toastService.ShowSuccess($"Se creo correctamente la presentacion de producto {presentacionProducto.nombre}");
+
+            }
+            if (accion == "Editar")
+            {
+
+                await http.PutJsonAsync($"api/PresentacionProducto/{presentacionProducto.Id}", presentacionProducto);
+                cargando = false;
+
+                toastService.ShowSuccess($"Se creo correctamente la presentacion de producto {presentacionProducto.nombre}");
+
+
+            }
+        }
+        catch (Exception ex)
+        {
+            cargando = false;
+
+            toastService.ShowError($"Ocurrió un error al intentar crear la presentacion {presentacionProducto.nombre}, {ex.Message}");
+
+        }
+
+
+        await CloseAllModals();
+
+        await callback.InvokeAsync(new Object());
+
+    }
+    public async Task CloseAllModals()
+    {
+
+        await js.InvokeAsync<object>("CloseAllModals");
+    }
+
+    public async Task<List<Unidad>> ListarUnidades()
+    {
+        return await http.GetJsonAsync<List<Unidad>>("api/unidad?cantidadDeRegistros=50");
+    }
+    public void RadioUnidadChange(Unidad unidad)
+    {
+        presentacionProducto.UnidadId = unidad.Id;
+        this.StateHasChanged();
+    }
+
+}

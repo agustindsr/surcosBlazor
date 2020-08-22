@@ -1,0 +1,240 @@
+﻿@page "/BackOffice/Tesoreria/OrdenPago"
+@inject HttpClient http
+@layout BackOfficeLayout
+@inject AuthenticationStateProvider authStateProvider
+@inject IRepositorio repositorio
+@inject IToastService toastService
+@inject NavigationManager uri
+@attribute [Authorize(Roles = "Admin, Tesoreria")]
+
+@if (cargando)
+{
+    <Loading></Loading>
+}
+<nav aria-label="breadcrumb">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item" @onclick="@(() => uri.NavigateTo("BackOffice/Tesoreria"))">Tesoreria</li>
+        <li class="breadcrumb-item" @onclick="@(() => uri.NavigateTo("BackOffice/Tesoreria/ListadoOrdenesPago"))">Ordenes de pago</li>
+        <li class="breadcrumb-item active" aria-current="page" @onclick="@(() => uri.NavigateTo($"BackOffice/Tesoreria/OrdenPago"))">Nueva Orden de Pago</li>
+    </ol>
+</nav>
+<h3>Nueva Orden Pago</h3>
+@if (ordenPago != null)
+{
+
+    <EditForm Model="ordenPago" OnValidSubmit="@(async()=> { cargando = true; await CrearOrdenPago(); })">
+        <Blazored.FluentValidation.FluentValidationValidator />
+        <ValidationSummary />
+        <div class="p-4" style="box-shadow:1px 1px 3px #323232">
+
+            <div class="col-md-12 row mx-0">
+                <div class="form-group col-md-6">
+                    <label>Proveedor</label>
+                    @if (ordenPago.ProveedorId == 0)
+                    {
+
+
+                        <InputBuscaTypeahead ElementoSeleccionado="((Proveedor proveedor) => { proveedorSeleccionado(proveedor); return proveedor; })" Context="proveedor"
+                                             SearchMethod="(async (string name) => await buscarProveedores(name))">
+                            <MyResultTemplate>
+                                <div>#@proveedor.Id @proveedor.razonSocial</div>
+                            </MyResultTemplate>
+                        </InputBuscaTypeahead>
+                    }
+                    else
+                    {
+                        <div><h2><strong class="badge">#@ordenPago.ProveedorId @ordenPago.Proveedor.razonSocial</strong><i class="fas fa-times text-danger" style="cursor:pointer" @onclick="(() => { ordenPago.Proveedor = null; ordenPago.ProveedorId = 0; ordenPago.Imputaciones = new List<ImputacionComprobantesCompra>(); facturasPendientes = new List<FacturaCompras>(); this.StateHasChanged(); })"></i></h2></div>
+                    }
+                </div>
+                <div class="col-md-6">
+                    <label>Fecha</label>
+                    <input class="form-control" type="date" value="@ordenPago.fecha.ToString("yyyy-MM-dd")" @onchange="@((ChangeEventArgs e) => { ordenPago.fecha = Convert.ToDateTime(e.Value); })" />
+                </div>
+            </div>
+        </div>
+        <div class="my-2">
+            <ul class="nav nav-pills mb-3" id="pills-tab" role="tablist">
+                <li class="nav-item">
+                    <a class="nav-link active" id="pills-imputaciones-tab" data-toggle="pill" href="#pills-imputaciones" role="tab" aria-controls="pills-imputaciones" aria-selected="true">Imputaciones</a>
+                </li>
+                <li class="nav-item mx-3">
+                    <a class="nav-link" id="pills-tesoreria-tab" data-toggle="pill" href="#pills-tesoreria" role="tab" aria-controls="pills-tesoreria" aria-selected="false">Movimientos de Tesorería</a>
+                </li>
+            </ul>
+
+            <div class="tab-content bg-light rounded" id="pills-tabContent">
+                <div class="tab-pane fade show active" id="pills-imputaciones" role="tabpanel" aria-labelledby="pills-imputaciones-tab">
+                    <div class="" style="box-shadow:1px 1px 3px #323232">
+                        <table class="table table-sm table-striped">
+                            <thead>
+                                <tr>
+                                    <th>Seleccionada</th>
+                                    <th>Número de comprobante</th>
+                                    <th>Estado</th>
+                                    <th>Total Comprobante</th>
+                                    <th>Total Pendiente</th>
+                                    <th>Total a Imputar</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach (FacturaCompras factura in facturasPendientes)
+                                {
+                                    <tr>
+                                        <td>
+                                            @if (ordenPago.Imputaciones.Where(x => x.FacturaComprasId == factura.Id).Count() > 0)
+                                            {
+                                                <input type="checkbox" checked @onclick="@(() => { ordenPago.Imputaciones.Remove(ordenPago.Imputaciones.Single(x => x.FacturaComprasId == factura.Id)); this.StateHasChanged(); })" />
+                                            }
+                                            else
+                                            {
+                                                <input type="checkbox" @onclick="@(() => { ordenPago.Imputaciones.Add(new ImputacionComprobantesCompra
+                                                                               { FacturaComprasId = factura.Id, FacturaCompras = factura,totalImputado = (factura.totalComprobante - factura.totalCancelado),  });
+                                                                                   this.StateHasChanged(); })" />
+                                            }
+                                        </td>
+                                        <td>@factura.codigo</td>
+                                        <td>@factura.EstadoFactura.nombre</td>
+                                        <td>$@factura.totalComprobante</td>
+                                        <td>$@(factura.totalComprobante - factura.totalCancelado)</td>
+                                        <td>
+                                            @if (ordenPago.Imputaciones.Where(x => x.FacturaComprasId == factura.Id).Count() > 0)
+                                            {
+                                                <input type="number" step="0.01" max="@(factura.totalComprobante - factura.totalCancelado)" class="form-control" @bind="ordenPago.Imputaciones.Single(x => x.FacturaComprasId == factura.Id).totalImputado" />
+                                            }
+                                        </td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+
+
+
+                    </div>
+                </div>
+                <div class="tab-pane fade" id="pills-tesoreria" role="tabpanel" aria-labelledby="pills-tesoreria-tab">
+
+                    <div class="p-4" style="box-shadow:1px 1px 3px #323232">
+                        <div class="d-flex justify-content-end"><div class="btn btn-info" @onclick="@(() => ordenPago.movimientosCaja.Add(new MovimientoCaja {  entra = true, }))">Agregar</div></div>
+                        <table class="table table-sm">
+                            <thead>
+                                <tr>
+                                    <th>Caja</th>
+                                    <th>Importe</th>
+                                    <th></th>
+                                </tr>
+                            </thead>
+                            @foreach (MovimientoCaja movimientoCaja in ordenPago.movimientosCaja)
+                            {
+                                <tr>
+                                    <td>
+                                        <SelectGenerico TList="cajas" Context="caja" TItemActual="movimientoCaja.Caja"
+                                                        SelectItem="@((Caja caja) => { movimientoCaja.Caja = caja; movimientoCaja.CajaId = caja.Id; })">
+
+                                            <TTemplate>@caja.nombre</TTemplate>
+                                        </SelectGenerico>
+                                        <ValidationMessage For="@(() => ordenPago.Imputaciones)" />
+                                    </td>
+                                    <td>
+                                        <input type="number" max="" step="0.01" class="form-control" value="@movimientoCaja.totalMovimiento" @onchange="(ChangeEventArgs e)=> { movimientoCaja.totalMovimiento = Convert.ToDecimal(e.Value); ordenPago.totalComprobante = ordenPago.movimientosCaja.Sum(x => x.totalMovimiento); }" />
+
+                                    </td>
+
+                                    <td><i class="far fa-trash-alt text-danger" style="cursor:pointer" @onclick="@(() => { ordenPago.movimientosCaja.Remove(movimientoCaja); })"></i></td>
+
+                                </tr>
+                            }
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+
+        </div>
+
+        <div class="p-4" style="box-shadow:1px 1px 3px #323232">
+            @if (true)
+            {
+                decimal diferencia = ordenPago.movimientosCaja.Sum(x => x.totalMovimiento) - ordenPago.Imputaciones.Sum(x => x.totalImputado);
+                <div class="col-md-12"><strong>Total imputado:</strong>$ @ordenPago.Imputaciones.Sum(x => x.totalImputado) </div>
+                <div class="col-md-12"><strong>Total pagado:</strong>$ @ordenPago.movimientosCaja.Sum(x => x.totalMovimiento) </div>
+                <div class="col-md-12 @(diferencia > 0 ? "text-success" : "")"><strong>A cuenta: </strong>$  @(diferencia > 0 ? diferencia : 0.00M)</div>
+                <div class="col-md-12 @(diferencia < 0 ? "text-danger" : "")"><strong>Diferencia: </strong>$  @(diferencia < 0 ? diferencia : 0.00M)</div>
+            }
+        </div>
+        <button type="submit" class="btn btn-block btn-info my-3">Crear</button>
+    </EditForm>
+}
+
+
+@code {
+    public OrdenPago ordenPago { get; set; }
+    public List<FacturaCompras> facturasPendientes { get; set; } = new List<FacturaCompras>();
+    public System.Security.Claims.ClaimsPrincipal User { get; set; }
+    public string userName { get; set; }
+    public List<Caja> cajas { get; set; }
+    public bool cargando { get; set; }
+    protected override async Task OnInitializedAsync()
+    {
+
+        ordenPago = new OrdenPago { movimientosCaja = new List<MovimientoCaja>(), Imputaciones = new List<ImputacionComprobantesCompra>() };
+
+        var authState = await authStateProvider.GetAuthenticationStateAsync();
+        User = authState.User;
+        userName = User.Identity.Name;
+        await ListarCajas();
+    }
+
+
+    public async Task ListarCajas()
+    {
+        cajas = await http.GetJsonAsync<List<Caja>>($"api/caja/cajasHabilitadas?userName={userName}");
+
+    }
+
+    public async Task<List<Proveedor>> buscarProveedores(string name)
+    {
+        return await http.GetJsonAsync<List<Proveedor>>($"api/proveedor?cantidadDeRegistros=25&filtro={name}");
+    }
+
+    public async Task proveedorSeleccionado(Proveedor proveedor)
+    {
+        ordenPago.Proveedor = proveedor;
+        ordenPago.ProveedorId = proveedor.Id;
+        await BuscarComprobantesPendientes();
+        this.StateHasChanged();
+    }
+    public async Task BuscarComprobantesPendientes()
+    {
+
+        facturasPendientes = await http.GetJsonAsync<List<FacturaCompras>>($"api/facturaCompra/facturasPorProveedorParaRecibo?proveedorId={ordenPago.ProveedorId}");
+    }
+
+
+    public async Task CrearOrdenPago()
+    {
+        ordenPago.Proveedor.Domicilio = null;
+        if (ordenPago.Imputaciones.Count > 0)
+        {
+            ordenPago.EstadoReciboId = 1;
+        }
+        else
+        {
+            ordenPago.EstadoReciboId = 2;
+
+        }
+        ordenPago.totalImputado = ordenPago.Imputaciones.Sum(x => x.totalImputado);
+        var respuesta = await repositorio.Post("api/OrdenPago", ordenPago);
+        cargando = false;
+
+        if (!respuesta.Error)
+        {
+            uri.NavigateTo($"/BackOffice/Tesoreria/ListadoOrdenesPago");
+            toastService.ShowSuccess("Se creó correctamente el ordenPago");
+        }
+        else
+        {
+            toastService.ShowError(respuesta.HttpResponseMessage.Content.ReadAsStringAsync().Result);
+        }
+    }
+}
+

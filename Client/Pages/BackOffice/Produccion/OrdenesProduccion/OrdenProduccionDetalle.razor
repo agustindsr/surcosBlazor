@@ -1,0 +1,125 @@
+﻿@page "/BackOffice/Produccion/DetalleOrdenProduccion/{Id:int}"
+@inject HttpClient http
+@layout BackOfficeLayout
+@inject AuthenticationStateProvider authStateProvider
+@inject IRepositorio repositorio
+@inject IToastService toastService
+@inject NavigationManager uri
+@inject IJSRuntime js
+@attribute [Authorize(Roles = "Admin, Produccion")]
+
+@if (cargando)
+{
+    <Loading></Loading>
+}
+
+<nav aria-label="breadcrumb">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item" @onclick="@(() => uri.NavigateTo("BackOffice/Produccion"))">Produccion</li>
+        <li class="breadcrumb-item" @onclick="@(() => uri.NavigateTo("BackOffice/Produccion/ListadoOrdenesProduccion"))">Listado Ordenes Produccion</li>
+
+        <li class="breadcrumb-item active" aria-current="page" @onclick="@(() => uri.NavigateTo($"BackOffice/Produccion/DetalleOrdenProduccion/{Id}"))">Detalle Orden Producción</li>
+    </ol>
+</nav>
+<h2>Detalle Orden Produccion</h2>
+
+@if (ordenProduccion != null)
+{
+
+
+    <div class="p-4" style="box-shadow:1px 1px 3px #323232">
+        <div class="d-flex justify-content-end"><div class="btn btn-sm btn-outline-danger" style="cursor:pointer" @onclick="@(async()=> { await ToggleModal("eliminarConfirm"); })">Eliminar</div></div>
+        <div class="col-md-12 row mx-0">
+            <div class="form-group col-md-6">
+                <label>Deposito</label>
+
+                <div><h2><strong class="badge">#@ordenProduccion.DepositoId @ordenProduccion.Deposito.nombre</strong></h2></div>
+
+            </div>
+            <div class="col-md-6">
+                <label>Fecha</label>
+                <strong>@ordenProduccion.fecha.ToString("dd/MM/yyyy HH:mm")</strong>
+            </div>
+        </div>
+    </div>
+    <div class="my-2">
+
+
+        <div class="" style="box-shadow:1px 1px 3px #323232">
+            <table class="table table-sm table-striped">
+                <thead>
+                    <tr>
+                        <th>Producto</th>
+                        <th>Cantidad</th>
+
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (DetalleOrdenProduccion detalleOrden in ordenProduccion.detallesOrdenProduccion)
+                    {
+                        <tr>
+
+                            <td>
+                                <div><img class="mx-2" src="@detalleOrden.ProductoPresentacion.Producto.Foto" style="height:20px; width:20px;border-radius:50%;" />@detalleOrden.ProductoPresentacion.Producto.nombre.ToUpper(), @detalleOrden.ProductoPresentacion.PresentacionProducto.nombre</div>
+                            </td>
+                            <td>@detalleOrden.cantidad</td>
+
+                        </tr>
+                    }
+                </tbody>
+            </table>
+
+
+
+        </div>
+    </div>
+
+    <ModalConfirm confirmFunc="@(async()=> { cargando = true; await eliminar(); })" modalId="eliminarConfirm">  </ModalConfirm>
+
+
+}
+
+
+@code {
+    public OrdenProduccion ordenProduccion { get; set; }
+    [Parameter] public int Id { get; set; }
+    public bool cargando { get; set; }
+    protected override async Task OnInitializedAsync()
+    {
+        if (Id != 0)
+        {
+            ordenProduccion = await http.GetJsonAsync<OrdenProduccion>($"api/ordenproduccion/{Id}");
+        }
+
+
+    }
+
+    public async Task eliminar()
+    {
+
+        var respuesta = await repositorio.Delete($"api/OrdenProduccion/{ordenProduccion.Id}");
+        cargando = false;
+        await ToggleModal("eliminarConfirm");
+        @if (!respuesta.Error)
+        {
+
+            uri.NavigateTo("/BackOffice/Produccion");
+            toastService.ShowSuccess("Se eliminó correctamente");
+        }
+        else
+        {
+
+            toastService.ShowError(respuesta.HttpResponseMessage.Content.ReadAsStringAsync().Result);
+
+        }
+
+    }
+
+
+    public async Task ToggleModal(string id)
+    {
+        await js.InvokeVoidAsync("ModalToggle", id);
+    }
+
+
+}

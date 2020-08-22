@@ -1,0 +1,64 @@
+﻿@inherits InputBase<T>
+@typeparam T
+@using System.Globalization
+
+
+        <div class="inputMaterialize @cssClass @(string.IsNullOrEmpty(CurrentValueAsString)? "":"notEmpty")">
+            <input class="col-xs-12" @attributes="@AdditionalAttributes"  @bind-value="CurrentValueAsString">
+            <label>@if (requerido) { <strong style="font-size:1rem" class="text-danger mr-1">*</strong>}@label</label>
+        </div>
+     
+@code{
+    [Parameter] public string label { get; set; }
+    [Parameter] public bool requerido { get; set; }
+    [Parameter] public string cssClass { get; set; }
+    [Parameter] public int maxLenght { get; set; } = 99;
+    [Parameter] public int minLenght { get; set; } = 0;
+
+    protected override bool TryParseValueFromString(string value, out T result, out string validationErrorMessage)
+    {
+        if (typeof(T) == typeof(string))
+        {
+            result = (T)(object)value;
+            validationErrorMessage = null;
+
+            return true;
+        }
+        else if (typeof(T) == typeof(int))
+        {
+            int.TryParse(value, NumberStyles.Integer, CultureInfo.InvariantCulture, out var parsedValue);
+            result = (T)(object)parsedValue;
+            validationErrorMessage = null;
+
+            return true;
+        }
+        else if (typeof(T) == typeof(Guid))
+        {
+            Guid.TryParse(value, out var parsedValue);
+            result = (T)(object)parsedValue;
+            validationErrorMessage = null;
+
+            return true;
+        }
+        else if (typeof(T).IsEnum)
+        {
+            // There's no non-generic Enum.TryParse (https://github.com/dotnet/corefx/issues/692)
+            try
+            {
+                result = (T)Enum.Parse(typeof(T), value);
+                validationErrorMessage = null;
+
+                return true;
+            }
+            catch (ArgumentException)
+            {
+                result = default;
+                validationErrorMessage = $"The {FieldIdentifier.FieldName} field is not valid.";
+
+                return false;
+            }
+        }
+
+        throw new InvalidOperationException($"{GetType()} does not support the type '{typeof(T)}'.");
+    }
+}

@@ -1,0 +1,64 @@
+﻿@layout BackOfficeLayout
+@attribute [Authorize(Roles = "Admin, Configuracion")]
+
+@page "/BackOffice/Configuraciones/ListadoCategoriaProducto"
+@inject HttpClient http
+@inject NavigationManager uri
+<nav aria-label="breadcrumb">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item" @onclick="@(()=>uri.NavigateTo("/BackOffice/Configuraciones"))">Configuraciones</li>
+        <li class="breadcrumb-item active" aria-current="page" @onclick="@(()=>uri.NavigateTo("/BackOffice/Configuraciones/ListadoCategoriaProducto"))">Listado Categorias Producto</li>
+    </ol>
+</nav>
+<div>
+    <div class="border-bottom border-secondary my-2">
+        <h2 class="">Categorias Producto</h2>
+    </div>
+    <BotoneraAcciones T="CategoriaProducto" agregar="true">
+        <modalContentAgregar>
+            <CategoriaProductoForm categoriaProducto="new CategoriaProducto()" callback="(async() => {this.StateHasChanged();await tablaGenerica.ListarItemsApi(); })"
+                                   accion="Crear">
+            </CategoriaProductoForm>
+        </modalContentAgregar>
+    </BotoneraAcciones>
+    <TablaGenerica @ref="tablaGenerica"
+                   elementosAmostrar='new List<string[]> {
+                                new string[3]{"Id", "Id","Texto" },
+                                new string[3]{ "Nombre","nombre","Text" },
+                                new string[3]{ "Clasificación","clasificacion","Text" }}'
+                   acciones="true"
+                   consultaApi='new TablaGenerica<CategoriaProducto>.ConsultarApi {  baseUrl=$"api/categoriaProducto?", consultaApi=true, paginacion=true, cantidadDeRegistrosAMostrar=10}'
+                   editar="true"
+                   selectTitem="((CategoriaProducto categoriaProducto)=>ElementoSeleccionado(categoriaProducto))"
+                   eliminar="true"
+                   eliminarFunc="@(async ()=>await EliminarCategoriaProducto(categoriaProducto))">
+
+        <modalContentEditar>
+            <CategoriaProductoForm categoriaProducto="categoriaProducto" callback="(()=>this.StateHasChanged())"
+                                   accion="Editar">
+            </CategoriaProductoForm>
+        </modalContentEditar>
+
+    </TablaGenerica>
+</div>
+@code {
+    public CategoriaProducto categoriaProducto { get; set; }
+    public TablaGenerica<CategoriaProducto> tablaGenerica { get; set; }
+
+
+    public async Task EliminarCategoriaProducto(CategoriaProducto categoriaProducto)
+    {
+        await http.DeleteAsync($"api/categoriaProducto/{categoriaProducto.Id}");
+        this.categoriaProducto = null;
+
+    }
+
+
+    public CategoriaProducto ElementoSeleccionado(CategoriaProducto categoriaProducto)
+    {
+
+        this.categoriaProducto = categoriaProducto;
+        this.StateHasChanged();
+        return categoriaProducto;
+    }
+}

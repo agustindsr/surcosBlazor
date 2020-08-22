@@ -1,0 +1,354 @@
+﻿@layout BackOfficeLayout
+@attribute [Authorize(Roles = "Admin, Configuracion")]
+
+@page "/BackOffice/Configuraciones/Producto/{Id:int}"
+@inject HttpClient http
+@inject NavigationManager uri
+@inject IRepositorio repositorio
+@using SurcosBlazor.Client.Pages.BackOffice.Configuracion.ProductoC.ProductoPresentacionC
+@using SurcosBlazor.Client.Pages.BackOffice.Configuracion.ProductoC.FormulaProductoC
+@inject IToastService toastService
+<nav aria-label="breadcrumb">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item" @onclick="@(()=>uri.NavigateTo("/BackOffice/Configuraciones"))">Configuraciones</li>
+        <li class="breadcrumb-item" @onclick="@(()=>uri.NavigateTo("/BackOffice/Configuraciones/ListadoProductos"))">Productos</li>
+        <li class="breadcrumb-item active" aria-current="page" @onclick="@(()=>uri.NavigateTo($"/BackOffice/Configuraciones/Producto/{Id}"))">Detalle Producto</li>
+    </ol>
+</nav>
+<div>
+    <div class="border-bottom border-secondary my-2">
+        <h2 class="">Producto</h2>
+    </div>
+    <BotoneraAcciones Context="provinciaContext"
+                      Titem="producto"
+                      ElementoSeleccionado="((provincia) => ElementoSeleccionado(producto))"
+                      editar="true"
+                      eliminar="true" eliminarFunc='(async () => { EliminarProducto(producto); uri.NavigateTo("Configuraciones/ListadoProductos"); })'>
+        <modalContentEditar>
+            <ProductoForm producto="producto" callback="(async() => { await BuscarProducto(); this.StateHasChanged(); })" accion="Editar"></ProductoForm>
+        </modalContentEditar>
+
+    </BotoneraAcciones>
+    @if (producto != null)
+    {
+        <div class="detalleEntidad my-4 col-md-12 row m-0 justify-content-center align-items-center d-flex">
+
+            <div class="col-md-2 p-0 m-0">
+                <img src="@producto.Foto" style="width:100px;height:100px; border-radius:50%" />
+            </div>
+            <div class="col-md-8 offset-md-1">
+                <div class="col-md-12 pt-2 my-1">
+                    <h3 class="text-center"> <strong><span class="">@producto.nombre</span></strong></h3>
+                </div>
+                <div>
+                    <h4><strong>Id: </strong><span class="">@producto.Id</span></h4>
+                </div>
+
+
+                <div class="">
+                    <h4> <strong>Categoria: </strong><span>@producto.CategoriaProducto?.nombre</span></h4>
+                </div>
+            </div>
+
+        </div>
+
+
+
+        <div class="border-bottom border-secondary my-2">
+            <h3 class="">Presentaciones</h3>
+        </div>
+
+        <BotoneraAcciones Context="productoPresentacion"
+                          Titem="productoPresentacion"
+                          agregar="true">
+
+            <modalContentAgregar>
+                <ProductoPresentacionForm producto="producto"
+                                          accion="Crear"
+                                          callback="(async() => {await BuscarProducto();  this.StateHasChanged();})"
+                                          productoPresentacion="new ProductoPresentacion()">
+
+                </ProductoPresentacionForm>
+            </modalContentAgregar>
+        </BotoneraAcciones>
+        <ListadoGenerico listado="productoPresentaciones">
+
+            <HayRegistros>
+
+                <div class="row">
+                    <div class="col-3">
+                        <div class="nav flex-column nav-pills" id="v-pills-tab" role="tablist" aria-orientation="vertical">
+                            @for (int i = 0; i < productoPresentaciones.Count; i++)
+                            {
+                                ProductoPresentacion productoPresentacion = productoPresentaciones[i];
+
+                            <a class="nav-link  border border-dark my-1 text-center"
+                               id="v-pills-@productoPresentacion.Id-tab" data-toggle="pill"
+                               href="#v-pills-@productoPresentacion.Id" role="tab" aria-controls="v-pills-@productoPresentacion.Id" aria-selected="true" @onclick="@(async()=>await BuscarDetalleProductoPresentaciones(productoPresentacion.Id))">
+
+                                @productoPresentacion.PresentacionProducto?.nombre
+                                <i class="mx-1 @(productoPresentacion.esFormulado ? "fas fa-calculator":"fas fa-money-bill-wave")"></i>
+
+                                @*$@((productoPresentacion.esFormulado ? productoPresentacion.FormulaProducto?._total : productoPresentacion.costo)?.ToString("0.00"))*@
+                            </a>
+
+                            }
+
+
+                        </div>
+                    </div>
+                    <div class="col-9">
+                        <div class="tab-content" id="v-pills-tabContent">
+                          
+                          
+                            @if (productoPresentacion != null) 
+                            { 
+                                <div class="tab-pane fade active show" id="v-pills-@productoPresentacion.Id" role="tabpanel" aria-labelledby="v-pills-@productoPresentacion.Id-tab">
+                                    <BotoneraAcciones T="ProductoPresentacion"
+                                                      editar="true"
+                                                      eliminar="true"
+                                                      tamañoModal="modal-lg"
+                                                      Titem="productoPresentacion"
+                                                      Context="productoPresentacion"
+                                                      modalIdEditar='@($"modalIdEditarProdPresentacion")'
+                                                      modalIdEliminar='@($"modalIdEliminarProdPresentacion")'
+                                                      ElementoSeleccionado="((ProductoPresentacion productoPresentacion)=>ProductoPresentacionSeleccionado(productoPresentacion))"
+                                                      eliminarFunc="(async () => {  EliminarProductoPresentacion(productoPresentacion); await BuscarProducto(); })">
+                                        <modalContentEditar>
+                                            <ProductoPresentacionForm producto="producto"
+                                                                      productoPresentacion="@productoPresentacion"
+                                                                      callback="(async ()=> {productoPresentaciones= null; await BuscarProducto(); this.StateHasChanged(); })"
+                                                                      accion="Editar">
+                                            </ProductoPresentacionForm>
+                                        </modalContentEditar>
+                                    </BotoneraAcciones>
+                                    <div class="detalleEntidad my-4 bg-light p-4">
+                                        <div class="col-md-12 row mx-0 my-4">
+
+                                            <div class="col-md-11">
+                                                <div>
+                                                    <h4> <strong>@productoPresentacion.Producto?.nombre, @productoPresentacion.PresentacionProducto?.nombre</strong></h4>
+                                                </div>
+                                                <div>
+                                                    <h4> <strong>Proveedor: @productoPresentacion.Proveedor?.razonSocial</strong></h4>
+                                                </div>
+                                                <div>
+                                                    <h4> <strong>Id: </strong><span class="">@productoPresentacion.Id</span></h4>
+                                                </div>
+                                                <div>
+                                                    <h4> <strong>Alerta Stock: </strong><span class="">@productoPresentacion.cantidadStockMinima</span></h4>
+                                                </div>
+                                                <div>
+                                                    <h4> <strong>Descripcion: </strong><span class="">@productoPresentacion.descripcion</span></h4>
+                                                </div>
+
+                                                <div class="d-flex">
+
+                                                    <div class="d-flex"><h4><strong>Es Formulado</strong></h4> <input type="checkbox" class="form-control" disabled @bind="@productoPresentacion.esFormulado" /><span>@(productoPresentacion.esFormulado ? " On" : " Off")</span></div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        @if (!productoPresentacion.esFormulado)
+                                        {
+                                            <div class="col-md-12 row mx-0 p-3 bg-light font-weight-bold">
+                                                <h4><strong>Costo: </strong><span class="">$ @productoPresentacion.costo</span></h4>
+                                            </div>
+                                        }
+                                        else
+                                        {
+                                            <div class="border-bottom border-secondary mt-4 mb-2">
+                                                <h3 class=""><strong>FORMULA</strong></h3>
+                                            </div>
+
+                                            <BotoneraAcciones T="FormulaProducto"
+                                                              editar="@(!(productoPresentacion.FormulaProducto == null))"
+                                                              agregar="@(productoPresentacion.FormulaProducto == null)"
+                                                              tamañoModal="modal-lg"
+                                                              Titem="productoPresentacion.FormulaProducto"
+                                                              Context="formulaProducto"
+                                                              modalIdEditar='@($"modalIdEditarFormulaProducto")'
+                                                              modalIdEliminar='@($"modalIdEliminarFormulaProducto")'
+                                                              modalIdCrear='@($"modalIdCrearFormulaProducto")'
+                                                              ElementoSeleccionado="((FormulaProducto formula)=> productoPresentacion.FormulaProducto = formula)">
+                                                <modalContentEditar>
+
+                                                    <FormulaProductoForm formulaProducto="productoPresentacion.FormulaProducto"
+                                                                         accion="Editar"
+                                                                         callback="(async() => { await BuscarProducto(); await BuscarDetalleProductoPresentaciones(productoPresentacion.Id);this.StateHasChanged(); })"
+                                                                         productoPresentacion="productoPresentacion">
+
+                                                    </FormulaProductoForm>
+
+                                                </modalContentEditar>
+                                                <modalContentAgregar>
+                                                    <FormulaProductoForm formulaProducto="new FormulaProducto()"
+                                                                         productoPresentacion="productoPresentacion"
+                                                                         accion="Crear"
+                                                                         callback="(async() => {await BuscarProducto(); await BuscarDetalleProductoPresentaciones(productoPresentacion.Id);this.StateHasChanged(); })">
+
+                                                    </FormulaProductoForm>
+
+                                                </modalContentAgregar>
+                                            </BotoneraAcciones>
+                                            @if (productoPresentacion.FormulaProducto != null)
+                                            {
+
+                                              
+
+
+                                                //DETALLE FOMULA
+                                                <ListadoGenerico listado="productoPresentacion.FormulaProducto?.DetallesFormula">
+                                                    <HayRegistros>
+                                                        <table class="table table-sm">
+                                                            <thead>
+                                                                <tr class="bg-dark text-white">
+                                                                    <th>Producto</th>
+                                                                    <th>Costo</th>
+                                                                    <th>Cantidad KG/LT/UNI</th>
+
+                                                                    <th>$</th>
+
+                                                                </tr>
+                                                            </thead>
+                                                            <tbody>
+                                                                @foreach (DetalleFormula detalle in productoPresentacion.FormulaProducto.DetallesFormula)
+                                                                {
+                                                                    <tr>
+                                                                        <td>
+                                                                            @if (detalle.ProductoPresentacion.Id != 0)
+                                                                            {
+                                                                                <div class="d-flex">
+                                                                                    <img src="@detalle.ProductoPresentacion?.Producto?.Foto" style="width:30px; height:30px;border-radius:50%" />
+                                                                                    <span class="badge">@detalle.ProductoPresentacion?.Producto?.nombre, @detalle.ProductoPresentacion?.PresentacionProducto?.nombre</span>
+                                                                                </div>
+                                                                            }
+
+                                                                        </td>
+
+                                                                        <td><strong>$ @((detalle.ProductoPresentacion?.costo)?.ToString("0.00"))</strong></td>
+
+                                                                        <td><strong>@detalle.cantidad</strong></td>
+
+
+                                                                        <td><strong>$ @((detalle.ProductoPresentacion?.costo * (detalle.cantidad/detalle.ProductoPresentacion?.PresentacionProducto?.cantidad))?.ToString("0.00"))</strong></td>
+                                                                    </tr>
+
+                                                                }
+                                                            </tbody>
+                                                        </table>
+                                                    </HayRegistros>
+                                                </ListadoGenerico>
+
+
+
+                                                <div class="bg-dark text-white p-2">
+                                                    <h4 class="text-right mr-4"><strong>COSTO TOTAL: </strong>$ @((productoPresentacion.FormulaProducto?._total)?.ToString("0.00"))</h4>
+                                                </div>
+                                            }
+
+
+
+                                        }
+
+
+                                    </div>
+                                </div>
+                            }
+
+                        </div>
+                    </div>
+                </div>
+
+            </HayRegistros>
+        </ListadoGenerico>
+
+
+    }
+</div>
+@code {
+    [Parameter] public int Id { get; set; }
+    [Parameter] public Producto producto { get; set; }
+    public ProductoPresentacion productoPresentacion { get; set; }
+    public List<ProductoPresentacion> productoPresentaciones { get; set; }
+    public FormulaProducto formulaProducto { get; set; }
+    public string error { get; set; }
+
+
+    protected override async Task OnInitializedAsync()
+    {
+        await BuscarProducto();
+    }
+    public async Task BuscarProducto()
+    {
+        if (Id != 0)
+        {
+            producto = await http.GetJsonAsync<Producto>($"api/producto/{Id}");
+            await BuscarProductoPresentaciones();
+
+        }
+        this.StateHasChanged();
+
+    }
+    public async Task BuscarProductoPresentaciones()
+    {
+        if (Id != 0)
+        {
+            productoPresentaciones = await http.GetJsonAsync<List<ProductoPresentacion>>($"api/ProductoPresentacion/productoPresentacionBasicas?ProductoId={Id}");
+            //productoPresentaciones = await http.GetJsonAsync<List<ProductoPresentacion>>($"api/ProductoPresentacion?ProductoId={Id}");
+        }
+    }
+    public async Task BuscarDetalleProductoPresentaciones(int Id)
+    {
+        if (Id != 0)
+        {
+            productoPresentacion = await http.GetJsonAsync<ProductoPresentacion>($"api/ProductoPresentacion/productoPresentacion?productoPresentacionId={Id}");
+            //productoPresentaciones = await http.GetJsonAsync<List<ProductoPresentacion>>($"api/ProductoPresentacion?ProductoId={Id}");
+        }
+    }
+
+
+    public async Task EliminarProducto(Producto producto)
+    {
+        await http.DeleteAsync($"api/producto/{producto.Id}");
+        this.producto = null;
+    }
+
+    public Producto ElementoSeleccionado(Producto producto)
+    {
+
+        this.producto = producto;
+        this.StateHasChanged();
+        return producto;
+    }
+    public ProductoPresentacion ProductoPresentacionSeleccionado(ProductoPresentacion productoPresentacion)
+    {
+
+        this.productoPresentacion = productoPresentacion;
+        this.StateHasChanged();
+        return productoPresentacion;
+    }
+
+    public async Task EliminarProductoPresentacion(ProductoPresentacion productoPresentacion)
+    {
+
+        //toastService.ShowError(result.Content.ReadAsStringAsync().Result);
+
+        //Console.WriteLine(result.ReasonPhrase);
+        //Console.WriteLine(result.);
+
+        var result = await repositorio.Delete($"api/productoPresentacion/{productoPresentacion.Id}");
+        if (result.Error)
+        {
+            error = result.HttpResponseMessage.Content.ReadAsStringAsync().Result;
+            Console.WriteLine(error);
+            toastService.ShowError(error);
+        }
+        await BuscarProducto();
+
+    }
+    public async Task EliminarFormulaProducto(FormulaProducto formula)
+    {
+
+        await http.DeleteAsync($"api/formulaProducto/{formula.Id}");
+    }
+}

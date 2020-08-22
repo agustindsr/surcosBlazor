@@ -1,0 +1,142 @@
+﻿
+@page "/BackOffice/Ventas/Entregas"
+@using SurcosBlazor.Shared.Entidades
+@layout BackOfficeLayout
+@inject HttpClient http
+@inject AuthenticationStateProvider authStateProvider
+@inject IRepositorio repositorio
+@inject IToastService toastService
+@attribute [Authorize(Roles = "Admin, Ventas")]
+@inject NavigationManager uri
+
+    <nav aria-label="breadcrumb">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item" @onclick="@(()=>uri.NavigateTo("BackOffice/Ventas"))">Ventas</li>
+            <li class="breadcrumb-item active" aria-current="page" @onclick="@(()=>uri.NavigateTo("BackOffice/Ventas/Entregas"))">Entregas de pedidos confirmados</li>
+
+        </ol>
+    </nav><div class="d-flex p-4 col-md-12  mx-0 px-0 row align-items-center" style="box-shadow:1px 1px 3px #323232">
+    <div class="col-md-4  mx-0 px-0">
+        <label class="col-md-12 mx-0 px-0">Fecha Entrega</label>
+        <input class="form-control  mx-0 px-0" type="date" @onchange="@((ChangeEventArgs e)=> { fechaEntrega = Convert.ToDateTime(e.Value); })" />
+
+    </div>
+    <div class="d-inline-block  mx-md-4 mx-sm-0 px-sm-4 px-md-4">
+
+        <SelectGenerico T="Vendedor" TList="vendedores" Label="Vendedor" Context="Vendedor" SelectItem="@((Vendedor vendedor)=> { this.vendedor = vendedor;  })">
+            <TTemplate>
+                <div class="d-flex" style="line-height:25px"><img src="@Vendedor.Foto" width="25" height="25" style="border-radius:50%;margin-right:5px;" /> @Vendedor.nombre</div>
+            </TTemplate>
+        </SelectGenerico>
+    </div>
+    <div class="d-inline-block  mx-2 px-0">
+        <div class="btn btn-info" @onclick="@(async()=> {pedidosSeleccionadas = new List<SurcosBlazor.Shared.Entidades.Pedido>(); await ListarPedidos(); })">Buscar</div>
+
+    </div>
+</div>
+<div class="my-2">
+    <ListadoGenerico listado="pedidos">
+        <HayRegistros>
+            <h3 class="my-4">Seleccionadas @pedidosSeleccionadas.Count</h3>
+            @if (pedidosSeleccionadas.Count > 0)
+            {
+                <a href="@(GenerarUrl())">
+                    <i class="fas fa-map-marker-alt text-danger"> </i> Google Maps
+                </a>
+            }
+
+            <table class="table-sm table">
+                <thead>
+                    <tr>
+                        <th></th>
+                        <th>Domicilio</th>
+                        <th>Cliente</th>
+                        <th>Comprobante</th>
+                        <th>Total</th>
+                        <th>Entrega</th>
+                        <th>Observaciones</th>
+
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (SurcosBlazor.Shared.Entidades.Pedido pedido in pedidos)
+                    {
+                        <tr>
+                            <td>
+                                @if (pedidosSeleccionadas.Select(x => x.Id).Contains(pedido.Id))
+                                {
+                                    <input type="checkbox" checked @onclick="@(()=>pedidosSeleccionadas.Remove(pedido))" />
+                                }
+                                else
+                                {
+                                    if (pedidosSeleccionadas.Count < 9)
+                                    {
+                                        <input type="checkbox" @onclick="@(()=>pedidosSeleccionadas.Add(pedido))" />
+
+                                    }
+                                }
+                            </td>
+                            <td>@pedido.Domicilio.Departamento.nombre, @pedido.Domicilio.Provincia.nombre, @pedido.Domicilio.calle @pedido.Domicilio.numero @pedido.Domicilio.piso @pedido.Domicilio.manzana</td>
+                            <td>@pedido.nombreCliente, @pedido.apellidoCliente</td>
+                            <td><a href="@($"BackOffice/Ventas/Pedido/{pedido.Id}")">Pedido #@pedido.Id</a></td>
+                            <td>$@pedido.total</td>
+                            <td>@pedido.fechaEntrega.ToString("dd/MM")</td>
+                            <th>@pedido.observaciones</th>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </HayRegistros>
+    </ListadoGenerico>
+</div>
+@code {
+    public DateTime fechaEntrega { get; set; } = DateTime.Now;
+    public Vendedor vendedor { get; set; }
+    public List<Vendedor> vendedores { get; set; }
+    public List<SurcosBlazor.Shared.Entidades.Pedido> pedidos { get; set; } = new List<SurcosBlazor.Shared.Entidades.Pedido>();
+    public string userName { get; set; }
+    public System.Security.Claims.ClaimsPrincipal User { get; set; }
+    public List<SurcosBlazor.Shared.Entidades.Pedido> pedidosSeleccionadas { get; set; } = new List<SurcosBlazor.Shared.Entidades.Pedido>();
+
+    public async Task ListarPedidos()
+    {
+        pedidos = await http.GetJsonAsync<List<SurcosBlazor.Shared.Entidades.Pedido>>($"api/pedido/PedidosPendienteDeEntrega?vendedorId={vendedor?.Id}&diaEntrega={fechaEntrega.Day}&mesEntrega={fechaEntrega.Month}&añoEntrega={fechaEntrega.Year}&cantidadDeRegistros=20");
+    }
+    protected override async Task OnInitializedAsync()
+    {
+        var authState = await authStateProvider.GetAuthenticationStateAsync();
+        User = authState.User;
+        userName = User.Identity.Name;
+        await ListarVendedores();
+    }
+    public async Task ListarVendedores()
+    {
+        var respuesta = await repositorio.Get<List<Vendedor>>($"api/pedido/vendedoresHabilitados?userName={userName}");
+        if (!respuesta.Error)
+        {
+            vendedores = respuesta.Response;
+        }
+        else
+        {
+            toastService.ShowError(await respuesta.HttpResponseMessage.Content.ReadAsStringAsync());
+        }
+    }
+
+    public string GenerarUrl()
+    {
+        if (pedidosSeleccionadas.Count > 0)
+        {
+
+
+            string urlbasica = $"https://www.google.com/maps/dir/?api=1&destination={pedidosSeleccionadas.Last().Domicilio.calle.Replace(" ", "+") + " " + pedidosSeleccionadas.Last().Domicilio.numero + "+" + pedidosSeleccionadas.Last().Domicilio.Provincia.nombre.Replace(" ", "+") + "+" + pedidosSeleccionadas.Last().Domicilio.Departamento.nombre.Replace(" ", "+")}&travelmode=driving&waypoints=";
+            for (int i = 0; i < pedidosSeleccionadas.Count - 1; i++)
+            {
+
+                urlbasica += pedidosSeleccionadas[i].Domicilio.calle.Replace(" ", "+") + " " + pedidosSeleccionadas[i].Domicilio.numero + "+" + pedidosSeleccionadas[i].Domicilio.Provincia.nombre.Replace(" ", "+") + "+" + pedidosSeleccionadas[i].Domicilio.Departamento.nombre.Replace(" ", "+") + "%7C";
+
+            }
+            return urlbasica;
+        }
+        else { return ""; }
+    }
+}

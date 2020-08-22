@@ -1,0 +1,254 @@
+﻿@inject HttpClient http
+@inject IJSRuntime js
+@using SurcosBlazor.Client.Pages.ECommerce
+<div id="tienda" class="mb-4 tienda">
+    <div class="navBar">
+
+        <div class="listasPrecios">
+            <div>
+                <span class="d-none d-md-inline">LISTA: </span>
+                @if (listas != null)
+                {
+                    @if (listas.Count() > 0)
+                    {
+                        @if (cantidad > 0)
+                        {<span>@lista?.TipoListaPrecio?.nombre.ToUpper()</span>}
+                    else
+                    {
+            <select @onchange="@(async (ChangeEventArgs e)=> { await seleccionarLista(Convert.ToInt32(e.Value.ToString())); })">
+                @foreach (ListaPrecios lista in listas)
+                {
+                    if (this.lista?.Id == lista.Id)
+                    {
+                        <option selected value="@lista.Id">@lista.TipoListaPrecio.nombre.ToUpper()</option>
+
+                    }
+                    else
+                    {
+                        <option value="@lista.Id">@lista.TipoListaPrecio.nombre.ToUpper()</option>
+                    }
+                }
+            </select>
+                    }
+                    }
+                    else
+                    { <h4>No hay listas disponibles</h4>}
+
+                }
+            </div>
+        </div>
+        <div class="logoTienda" @onclick="goToLandingPage">
+            <img src="/img/surcosLogoNuevo.jpg" style="cursor:pointer"/>
+        </div>
+        <div class="carrito" @onclick="toggleCarrito">
+            <span>$@total</span>
+
+            <i class="fas fa-shopping-cart"></i>
+            <label class="cantidad">@cantidad</label>
+        </div>
+    </div>
+
+
+    <div class="categorias">
+        @foreach (CategoriaProducto categoria in categorias)
+        {
+            <div class="categoria  @(this.categoria.Id == categoria.Id ? "seleccionada" : "")" @onclick="@(()=> { this.categoria = categoria; aplicarFiltros(); this.StateHasChanged(); })">
+                
+                    <span class="nombre col-md-12 row mx-2 px-0 d-flex align-items-center">
+                        <span class="col-md-10 mx-0 px-0">@categoria.nombre</span>
+                        @if (this.categoria.Id == categoria.Id)
+                        {
+                            <span @onclick="(() => {this.categoria = new CategoriaProducto(); cargarProductos(); this.StateHasChanged(); })" class="text-success col-md-2 mx-0 px-0"><i class="far fa-check-circle"></i></span>
+                        }
+                    </span>
+            </div>
+
+        }
+    </div>
+
+    <div class="principal">
+
+        <div class="productos col-md-12 row mx-0 px-0">
+            @if (lista != null)
+            {
+                <ListadoGenerico listado="productos">
+                    <HayRegistros>
+                        @for (int i = 0; i < productos.Count; i++)
+                        {
+                            <div class="col-xl-3 col-lg-4 col-md-6 col-xs-6">
+
+                                <ProductoCard @key="productos"
+                                              productosEnCarrito="@(convertirEnProductoDeCarrito(DetallesPedidoActual.Where(x => x.ProductoPresentacion.ProductoId == productos[i].Id).ToList()))"
+                                              producto="productos[i]"
+                                              addProducto="addProducto"
+                                              listaId="lista.Id"
+                                              calcularPrecio="calcularPrecio"
+                                              productoPresentaciones="productoPresentaciones.Where(x => x.ProductoId == productos[i].Id).ToList()"
+                                              descuento="descuento" deleteProducto="deleteProducto"
+                                              esElUltimo="i == productos.Count -1 ? true :false">
+                                </ProductoCard>
+                            </div>
+                        }
+                    </HayRegistros>
+                </ListadoGenerico>
+            }
+        </div>
+    </div>
+</div>
+
+
+@code {
+    [Parameter] public Provincia provincia { get; set; } = new Provincia();
+    [Parameter] public Func<ProductoPresentacion, int, int, Task> addProducto { get; set; }
+    [Parameter] public Func<ProductoPresentacion, Task> deleteProducto { get; set; }
+
+    [Parameter] public EventCallback cargarCarritoLocalStorage { get; set; }
+    [Parameter] public int cantidad { get; set; }
+    [Parameter] public int clienteId { get; set; }
+    [Parameter] public List<DetallePedido> DetallesPedidoActual { get; set; }
+    [Parameter] public decimal total { get; set; } = 0.00M;
+    public CategoriaProducto categoria { get; set; } = new CategoriaProducto();
+    public PresentacionProducto presentacion { get; set; } = new PresentacionProducto();
+    public List<ListaPrecios> listas { get; set; }
+    public List<ProductoPresentacion> productoPresentaciones { get; set; }
+    public List<Producto> productos { get; set; }
+    public List<Producto> ProductosAMostrar { get; set; } = new List<Producto>();
+    public List<CategoriaProducto> categorias { get; set; } = new List<CategoriaProducto>();
+    public List<PresentacionProducto> presentaciones { get; set; } = new List<PresentacionProducto>();
+    public ListaPrecios lista { get; set; }
+    [Parameter] public EventCallback toggleCarrito { get; set; }
+    public int productosMostrados { get; set; } = 8;
+
+    public async Task BuscarListas(int provinciaId, int clienteId) {
+        Console.WriteLine($"Provincia desde productos: {provinciaId}");
+        if (provinciaId != 0)
+        {
+
+            listas = await http.GetJsonAsync<List<ListaPrecios>>($"api/ListaPrecios/ListaPrecioEcommerce?provinciaId={provinciaId}&clienteId={clienteId}");
+            var ListaId = await js.GetFromLocalStorage("lista");
+
+            if (listas.Count() > 0)
+            {
+                if (lista == null)
+                {
+                    if (!string.IsNullOrEmpty(ListaId) && listas.Select(x => x.Id).Contains(Convert.ToInt32(ListaId)))
+                    {
+                        await seleccionarLista(Convert.ToInt32(ListaId));
+
+                    }
+                    else
+                    {
+                        await seleccionarLista(listas[0].Id);
+
+                    }
+                }
+            }
+            else
+            {
+                lista = null;
+            }
+        }
+
+    }
+
+    public async Task seleccionarLista(int id)
+    {
+        lista = null;
+        lista = await http.GetJsonAsync<ListaPrecios>($"api/ListaPrecios/{id}");
+        categoria = new CategoriaProducto();
+        cargarProductos();
+        await cargarCarritoLocalStorage.InvokeAsync(new object());
+        this.StateHasChanged();
+
+    }
+    public void cargarProductos()
+    {
+        productoPresentaciones = null;
+        productos = null;
+        productoPresentaciones = lista.DetalleListaPrecios.Select(x => x.ProductoPresentacion).OrderBy(x => x.PresentacionProducto.cantidad).Distinct().ToList();
+        productos = productoPresentaciones.Select(x => x.Producto).Distinct().OrderByDescending(x => x.CategoriaProducto.clasificacion).ThenBy(x => x.nombre).ToList();
+        //infiniteScroll();
+        //js.InvokeVoidAsync("InfiniteScroll", DotNetObjectReference.Create(this));
+
+        cargarCategorias();
+        cargarPresentaciones();
+        this.StateHasChanged();
+
+    }
+
+    public void cargarCategorias()
+    {
+        categorias = productos.Select(x => x.CategoriaProducto).Distinct().OrderByDescending(x => x.clasificacion).ThenBy(x => x.nombre).ToList();
+    }
+    public void cargarPresentaciones()
+    {
+        presentaciones = productoPresentaciones.Select(x => x.PresentacionProducto).Distinct().OrderBy(x => x.cantidad).ToList();
+
+    }
+    [JSInvokable]
+    public  void infiniteScroll() {
+
+        ProductosAMostrar.AddRange(productos.Skip(ProductosAMostrar.Count).Take(4).ToList());
+    }
+
+
+    public void aplicarFiltros()
+    {
+        if (categoria != null && categoria.Id != 0)
+        {
+            productos = productoPresentaciones.Select(x => x.Producto).Distinct().Where(x => x.CategoriaProductoId == categoria.Id).OrderBy(x => x.nombre).ToList();
+
+
+        }
+        if (presentacion != null && presentacion.Id != 0)
+        {
+            productos = productoPresentaciones.OrderBy(x => x.PresentacionProducto.cantidad).Where(x => x.PresentacionProductoId == presentacion.Id).Distinct().Select(x => x.Producto).ToList();
+
+        }
+
+    }
+    public decimal calcularPrecio(ProductoPresentacion prod)
+    {
+        try
+        {
+            return lista.DetalleListaPrecios.FirstOrDefault(x => x.ProductoPresentacionId == prod.Id).precioUnitarioFinal;
+
+        }
+        catch (Exception)
+        {
+
+            return 0.00M;
+        }
+    }
+    public decimal descuento(ProductoPresentacion prod)
+    {
+        try
+        {
+            return lista.DetalleListaPrecios.FirstOrDefault(x => x.ProductoPresentacionId == prod.Id).porcentajeDescuento;
+
+        }
+        catch (Exception)
+        {
+
+            return 0.00M;
+        }
+
+
+
+    }
+    public async Task goToLandingPage()
+    {
+        await js.InvokeAsync<object>("goToLandingPage");
+    }
+
+    public List<ProductoEnCarritoModel> convertirEnProductoDeCarrito(List<DetallePedido> detalles)
+    {
+        List<ProductoEnCarritoModel> productoEnCarritoModels = new List<ProductoEnCarritoModel>();
+        foreach (DetallePedido detalle in detalles)
+        {
+            productoEnCarritoModels.Add(new ProductoEnCarritoModel { producto = detalle.ProductoPresentacion, cantidad = detalle.cantidad });
+        }
+        return productoEnCarritoModels;
+    }
+}
+

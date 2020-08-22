@@ -1,0 +1,166 @@
+﻿@inject HttpClient http
+@inject IJSRuntime js
+@inject IToastService toastService
+@layout BackOfficeLayout
+@attribute [Authorize(Roles = "Admin, Configuracion")]
+@inject NavigationManager uri
+@page "/BackOffice/Configuraciones/DetalleListaPrecios/{ListaPreciosId:int}"
+
+<nav aria-label="breadcrumb">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item" @onclick="@(()=>uri.NavigateTo("/BackOffice/Configuraciones"))">Configuraciones</li>
+        <li class="breadcrumb-item" @onclick="@(()=>uri.NavigateTo("/BackOffice/Configuraciones/ListaListaPrecios"))">Listas Precios</li>
+        <li class="breadcrumb-item active" aria-current="page" @onclick="@(()=>uri.NavigateTo("/BackOffice/Configuraciones/DetalleListaPrecios"))">Detalle Lista Precios</li>
+    </ol>
+</nav>
+<div class="">
+    @if (ListaPrecios != null)
+    {
+        <div><h2>LISTA DE PRECIOS</h2></div>
+
+        <div class="col-md-12 row mx-0">
+            <div class="col-md-4 my-2">
+
+
+                <div class="mt-3"><strong>Tipo de Lista de Precios:</strong> @ListaPrecios.TipoListaPrecio.nombre</div>
+                <div class="mt-3"><strong>Fecha creación:</strong> @ListaPrecios.fecha.ToString("dddd, dd MMMM yyyy HH:mm:ss")</div>
+                <div class="mt-3"><strong>Estado:</strong> @(ListaPrecios.vigente ?"VIGENTE" : "OBSOLETA") </div>
+
+
+
+
+
+            </div>
+
+
+            <div class="col-md-4 my-2">
+                <div class="col-md-12 px-0 mt-3">
+                    @if (ListaPrecios.TipoListaPrecio != null)
+                    {
+                        <strong>Mínimo de compra:</strong> <span>$ @ListaPrecios.TipoListaPrecio.minimoDeCompra</span>
+                    }
+                </div>
+                <div class="col-md-12 px-0 mt-2">
+                    <strong>Clasificación</strong> <span>@ListaPrecios.clasificacion</span>
+                </div>
+                <div class="col-md-12 px-0 mt-3">
+
+                    <strong>Cantidad de productos:</strong> <span>@ListaPrecios.DetalleListaPrecios.Count()</span>
+
+                </div>
+            </div>
+            <div class="col-md-4">
+                <img src="img/LOGO 2019.png" style="width:200px" />
+            </div>
+        </div>
+        <ListadoGenerico listado="categorias">
+            <HayRegistros>
+
+                @foreach (CategoriaProducto categoria in categorias)
+                {
+                    <div class="my-4">
+                        <div class="mb-2 py-2 px-4 text-white font-weight-bold rounded" style="background:linear-gradient(90deg, #E88525, rgba(230,230,230,.8) 50%)">
+                            <h2 class="my-0 py-0 px-4 mx-4">@categoria.nombre.ToUpper()</h2>
+                        </div>
+                        <div class="px-0">
+                            @foreach (Producto producto in productos.Where(x => x.CategoriaProductoId == categoria.Id).ToList())
+                            {
+
+                                <div class="col-md-12 row mx-0 px-0 border my-1">
+                                    <div class="col-md-2 mx-0 px-auto bg-white">
+                                        <div class="col-md-12 px-0 mx-0 my-2 text-center"><strong>@producto.nombre?.ToUpper()</strong></div>
+                                        <img src="@producto.Foto" style="width:150px; height:150px" />
+                                    </div>
+                                    <div class="col-md-10 px-0 mx-0">
+                                        <div class="col-md-12 row mx-0 bg-dark text-white font-weight-bold">
+                                            <div class="col-md-2 mx-0 px-0 text-center">Presentacion</div>
+                                            <div class="col-md-2 mx-0 px-0  text-center">Costo</div>
+
+                                            <div class="col-md-2 mx-0 px-0  text-center"> MarkUp</div>
+                                            <div class="col-md-2 mx-0 px-0  text-center"> Descuento</div>
+                                            <div class="col-md-2 mx-0 px-0  text-center">Precio Venta</div>
+                                            <div class="col-md-1 mx-0 px-0  text-center"> Margen</div>
+
+
+                                        </div>
+                                        @foreach (ProductoPresentacion productoPresentacion in productoPresentaciones.Where(x => x.ProductoId == producto.Id).ToList())
+                                        {
+                                            DetalleListaPrecios detalle = ListaPrecios.DetalleListaPrecios.FirstOrDefault(x => x.ProductoPresentacionId == productoPresentacion.Id);
+
+                                            <div class="col-md-12 row mx-0 px-0 py-1 border-bottom ">
+                                                <div class="col-md-2 mx-0 px-0 my-auto"><h4 class="text-center m-0"><strong>@productoPresentacion.PresentacionProducto.nombre</strong></h4></div>
+
+                                                <div class="col-md-2 p-1 ">
+                                                    <h4 class="text-center m-0">$ <strong>@detalle.precioCosto</strong></h4>
+                                                </div>
+                                                <div class="col-md-2 px-1 text-center">
+
+                                                    <strong>@detalle.porcentajeRentabilidad%</strong>
+                                                </div>
+                                                <div class="col-md-2 px-1 text-center">
+                                                    @detalle.porcentajeDescuento%
+                                                </div>
+                                                <div class="col-md-2 px-1 text-center">
+                                                    $@detalle.precioUnitarioFinal
+                                                </div>
+                                                <div class="col-md-1 px-1 text-center">
+                                                    <strong>
+                                                        @(detalle.precioUnitarioFinal != 0.00M ? ((1 - (detalle.precioCosto / detalle.precioUnitarioFinal)) * 100).ToString("0.##") : "0.00")%
+                                                    </strong>
+
+
+                                                </div>
+
+
+
+                                            </div>
+
+                                        }
+                                    </div>
+                                </div>
+                            }
+
+                        </div>
+
+                    </div>
+
+                }
+            </HayRegistros>
+        </ListadoGenerico>
+    }
+</div>
+
+
+@code {
+    [Parameter] public int ListaPreciosId { get; set; }
+    public List<ProductoPresentacion> productoPresentaciones { get; set; }
+    public List<CategoriaProducto> categorias { get; set; }
+    public List<Producto> productos { get; set; }
+    public ListaPrecios ListaPrecios { get; set; }
+    protected override async Task OnParametersSetAsync()
+    {
+        if (ListaPreciosId != 0)
+        {
+
+            ListaPrecios = await http.GetJsonAsync<ListaPrecios>($"api/ListaPrecios/{ListaPreciosId}");
+            ListarProductosPresentacion();
+
+            productos = productoPresentaciones.Select(x => x.Producto).Distinct().ToList();
+
+            categorias = productos.Select(x => x.CategoriaProducto).Distinct().ToList();
+        }
+    }
+
+
+    public void ListarProductosPresentacion()
+    {
+        productoPresentaciones = ListaPrecios.DetalleListaPrecios.Select(x => x.ProductoPresentacion).ToList();
+
+    }
+
+
+
+
+
+
+}

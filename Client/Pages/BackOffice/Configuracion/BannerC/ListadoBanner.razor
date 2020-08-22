@@ -1,0 +1,67 @@
+﻿@layout BackOfficeLayout
+@page "/BackOffice/Configuraciones/ListadoBanners"
+@inject HttpClient http
+@attribute [Authorize(Roles = "Admin, Configuracion")]
+
+@inject NavigationManager uri
+@inject IJSRuntime js
+@using SurcosBlazor.Client.Repositorio
+@inject IRepositorio  repositorio
+
+<nav aria-label="breadcrumb">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item" @onclick="@(()=>uri.NavigateTo("/BackOffice/Configuraciones"))">Configuraciones</li>
+        <li class="breadcrumb-item active" aria-current="page" @onclick="@(()=>uri.NavigateTo("/BackOffice/Configuraciones/ListadoBanners"))">Listado Banners</li>
+    </ol>
+</nav>
+<div>
+    <div class="border-bottom border-secondary my-2">
+        <h2 class="">Banners</h2>
+    </div>
+    <BotoneraAcciones Context="banner"
+                      Titem="banner"
+                      agregar="true" tamañoModal="modal-lg">
+        <modalContentAgregar>
+            <BannerForm accion="Crear" banner="new Banner()" callback="(async () => { await tablaGenerica.ListarItemsApi(); })"></BannerForm>
+        </modalContentAgregar>
+
+
+    </BotoneraAcciones>
+
+
+    <TablaGenerica @ref="tablaGenerica"
+                   elementosAmostrar='new List<string[]> { new string[3]{"Id", "Id","Texto" },new string[3]{ "Foto","Foto","Imagen" },new string[3]{ "orden","orden","Text"}}'
+                   consultaApi='new TablaGenerica<Banner>.ConsultarApi {  consultaApi= true, baseUrl= "api/banner?", paginacion=true, cantidadDeRegistrosAMostrar=10}'
+                                     selectTitem="((Banner banner)=>ElementoSeleccionado(banner))"
+                   detalleUrl="BackOffice/Configuraciones/Banner"
+                   eliminar="true"
+                   eliminarFunc="(async ()=> { await EliminarVendedor(banner); this.StateHasChanged(); })" editar="true">
+       
+    </TablaGenerica>
+
+</div>
+
+
+@code {
+
+    public List<Banner> banners { get; set; }
+    public Banner banner { get; set; }
+    public TablaGenerica<Banner> tablaGenerica;
+
+
+
+    public async Task EliminarVendedor(Banner banner)
+    {
+        await repositorio.Delete($"api/banner/{banner.Id}");
+        this.StateHasChanged();
+    }
+
+
+    public Banner ElementoSeleccionado(Banner banner)
+    {
+        this.banner = banner;
+        this.StateHasChanged();
+        return banner;
+    }
+
+}

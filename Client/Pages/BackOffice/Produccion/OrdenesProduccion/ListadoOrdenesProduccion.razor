@@ -1,0 +1,101 @@
+﻿@page "/BackOffice/Produccion/ListadoOrdenesProduccion"
+@inject IRepositorio repositorio
+@layout BackOfficeLayout
+@attribute [Authorize(Roles = "Admin, Produccion")]
+@inject IRepositorio repositorio
+@inject NavigationManager uri
+
+
+<nav aria-label="breadcrumb">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item" @onclick="@(() => uri.NavigateTo("BackOffice/Produccion"))">Produccion</li>
+        <li class="breadcrumb-item active" aria-current="page" @onclick="@(() => uri.NavigateTo("BackOffice/Produccion/ListadoOrdenesProduccion"))">Listado Ordenes Producción</li>
+    </ol>
+</nav>
+<div class="listadoClientes">
+    <div class="d-flex justify-content-between">
+        <h3>Ordenes Producción @(ordenesProduccion != null ? $"({registrosTotales})" : "")</h3>
+        <div class="d-flex">
+            <div class="btn btn-sm btn-olive" @onclick="@(() => uri.NavigateTo($"/BackOffice/Produccion/OrdenProduccion"))">Nueva Orden Produccion</div>
+
+        </div>
+    </div>
+    <ListadoGenerico listado="ordenesProduccion">
+        <HayRegistros>
+            <table class="table table-sm my-2">
+                <tr class="">
+
+                    <th>Fecha</th>
+                    <th>Deposito</th>
+
+
+
+
+                </tr>
+                @foreach (OrdenProduccion ordenProduccion in ordenesProduccion)
+                {
+
+                    <tr class="ordenProduccion trSeleccionable" @onclick="@(() => uri.NavigateTo($"/BackOffice/Produccion/DetalleOrdenProduccion/{ordenProduccion.Id}"))">
+                        <td>@(ordenProduccion.fecha.ToString("dd:MM HH:mm"))</td>
+
+                        <td>@($"{ordenProduccion.Deposito.nombre}")</td>
+
+                    </tr>
+                }
+
+            </table>
+            <div>
+                <PaginacionComp PaginaActual="paginaActual"
+                                PaginasTotales="paginasTotales"
+                                PaginaSeleccionada="paginaSeleccionada">
+
+                </PaginacionComp>
+            </div>
+        </HayRegistros>
+
+    </ListadoGenerico>
+</div>
+
+@code {
+    public List<OrdenProduccion> ordenesProduccion { get; set; }
+    private int paginaActual = 1;
+    private int paginasTotales;
+    private HttpResponseWrapper<List<OrdenProduccion>> responseHttp;
+
+
+
+
+    public int cantidadDeRegistrosAMostrar { get; set; } = 25;
+    public int registrosTotales { get; set; }
+
+    protected override async Task OnInitializedAsync()
+    {
+
+
+        await ListarClientes();
+
+
+    }
+
+    public async Task ListarClientes()
+    {
+        responseHttp = await repositorio.Get<List<OrdenProduccion>>($"api/ordenProduccion?pagina={paginaActual}&cantidadDeRegistros={cantidadDeRegistrosAMostrar}");
+        if (!responseHttp.Error)
+        {
+            ordenesProduccion = responseHttp.Response;
+
+            registrosTotales = int.Parse(responseHttp.HttpResponseMessage.Headers.GetValues("conteo").FirstOrDefault());
+
+            paginasTotales = int.Parse(responseHttp.HttpResponseMessage.Headers.GetValues("totalPaginas").FirstOrDefault());
+
+        }
+
+
+    }
+    private async Task paginaSeleccionada(int pagina)
+    {
+        paginaActual = pagina;
+        await ListarClientes();
+    }
+
+}

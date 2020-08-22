@@ -1,0 +1,309 @@
+﻿@page "/BackOffice/Compras/ComprobanteCompras"
+@inject IJSRuntime js
+@inject HttpClient http
+@layout BackOfficeLayout
+@inject AuthenticationStateProvider authStateProvider
+@inject IRepositorio repositorio
+@inject IToastService toastService
+@inject NavigationManager uri
+@attribute [Authorize(Roles = "Admin, Compras")]
+
+
+    <nav aria-label="breadcrumb">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item" @onclick="@(()=>uri.NavigateTo("BackOffice/Compras"))">Compras</li>
+            <li class="breadcrumb-item active" aria-current="page" @onclick="@(()=>uri.NavigateTo("BackOffice/Compras/ComprobanteCompras"))">Nuevo Comprobantes</li>
+        </ol>
+    </nav>
+@if (cargando)
+{
+
+    <Loading></Loading>
+}
+<h2>
+          <strong>Nuevo Comprobante</strong>
+   </h2>
+<EditForm Model="factura" OnValidSubmit="@(async() =>{ cargando = true; await CrearFactura(); })">
+    <Blazored.FluentValidation.FluentValidationValidator />
+    <ValidationSummary />
+    <div class="row col-md-12 my-3 mx-0 px-0">
+        <div class="col-md-12 mx-0 px-0 row align-content-center" style="box-shadow:1px 1px 4px #213154; border-radius:5px;">
+            <div class="col-md-3 my-4 mx-0 px-2">
+                <label><strong>Proveedor: </strong></label>
+                @if (factura.Proveedor == null || factura.ProveedorId == 0)
+                {
+
+                    <InputBuscaTypeahead ElementoSeleccionado="((Proveedor proveedor) => { proveedorSeleccionado(proveedor); return proveedor; })" Context="proveedor"
+                                         SearchMethod="(async (string name) => await buscarProveedores(name))">
+                        <MyResultTemplate>
+                            <div>#@factura.ProveedorId @proveedor.razonSocial @proveedor.Domicilio?.Departamento?.nombre, @proveedor.Domicilio?.Provincia?.nombre</div>
+                        </MyResultTemplate>
+                    </InputBuscaTypeahead>
+                }
+                else
+                {
+                    <div class="badge badge-light">#@factura.ProveedorId @factura.Proveedor.razonSocial</div><i class="fa fas-time text-danger" @onclick="(() => { factura.Proveedor = null; factura.ProveedorId = 0; })"><i class="fas fa-times text-danger"></i></i>
+                }
+            </div>
+            <div class="col-md-3 my-4 mx-0 px-2">
+                <SelectGenerico Context="TipoComprobante"
+                                Label="Tipo Comprobante"
+                                MsjDefault="Seleccione un Tipo Comprobante"
+                                T="TipoComprobante"
+                                TItemActual="@factura.TipoComprobante"
+                                TList="tiposComprobante" SelectItem="@(async (TipoComprobante tipo) => { factura.TipoComprobante = tipo; factura.TipoComprobanteId = tipo.Id;})">
+                    <TTemplate>
+                        <div class="d-flex" style="line-height:25px">@TipoComprobante.nombre</div>
+                    </TTemplate>
+                </SelectGenerico>
+            </div>
+
+            <div class="col-md-3 my-4 mx-0 px-2">
+                <SelectGenerico Context="Deposito"
+                                Label="Deposito"
+                                MsjDefault="Seleccione un deposito"
+                                T="Deposito"
+                                TItemActual="@factura.Deposito"
+                                TList="depositos" SelectItem="@(async (Deposito deposito) => { factura.Deposito = deposito; factura.DepositoId = deposito.Id; })">
+                    <TTemplate>
+                        <div class="d-flex" style="line-height:25px">@Deposito.nombre</div>
+                    </TTemplate>
+                </SelectGenerico>
+            </div>
+            <div class="col-md-3 my-4 mx-0 px-2">
+                <label class="col-md-12 mx-0 px-0">Fecha FacturaCompras</label>
+
+                <input type="date" value="@(factura.fecha.ToString("yyyy-MM-dd"))" @onchange="@((ChangeEventArgs e) => factura.fecha = Convert.ToDateTime(e.Value.ToString()))" />
+            </div>
+
+            @if (Id != 0)
+            {
+                <div class="col-md-3 my-4 mx-0 px-2">
+                    <SelectGenerico Label="Estado FacturaCompras" T="EstadoFactura"
+                                    Context="Estado"
+                                    SelectItem="((EstadoFactura estado) => { factura.EstadoFactura = estado; factura.EstadoFacturaId = estado.Id; })"
+                                    TItemActual="factura.EstadoFactura"
+                                    TList="estadosFactura">
+                        <TTemplate>@Estado.nombre</TTemplate>
+                    </SelectGenerico>
+                </div>
+            }
+        </div>
+
+
+
+    </div>
+
+
+
+
+
+    <div class="detallesFactura my-4">
+        <div class="col-md-12 row mx-0 p-2 d-flex justify-content-between align-items-center my-2" style="background: linear-gradient(90deg, #262626, #213154);color:white;border-radius:5px;">
+            <h3>Productos (@factura.detallesFactura.Count())</h3>
+            <div class="listasPrecios d-flex align-items-center">
+
+
+                <div class="btn btn-sm btn-light mx-2" @onclick="@(() => factura.detallesFactura.Add(new DetalleFacturaCompras { ProductoPresentacion = new ProductoPresentacion() }))">Agregar</div>
+
+
+            </div>
+
+        </div>
+        <table class="table table-sm d-xs-block" style="overflow-x:auto;">
+            <thead>
+                <tr class="bg-dark text-white p-1 rounded">
+                    <th>Producto</th>
+                    <th>Cantidad</th>
+                    <th>Precio Unitario</th>
+                    <th>Total</th>
+                    <th></th>
+                </tr>
+            </thead>
+            <tbody>
+
+                @foreach (DetalleFacturaCompras detallesFactura in factura.detallesFactura)
+                {
+                    <tr class="">
+                        <td>
+                            @if (detallesFactura.ProductoPresentacion.Producto == null)
+                            {
+                                <InputBuscaTypeahead ElementoSeleccionado="((ProductoPresentacion producto) => { detallesFactura.ProductoPresentacion = producto; detallesFactura.ProductoPresentacionId = producto.Id; detallesFactura.precioUnitario = producto.costo; this.StateHasChanged(); return producto; })"
+                                                     Context="Producto"
+                                                     SearchMethod="(async (string name) => await buscarProductos(name))">
+                                    <MyResultTemplate>
+                                        <div><img class="mx-2" src="@Producto.Producto.Foto" style="width:25px; height:25px" />@Producto.Producto.nombre.ToUpper(), @Producto.PresentacionProducto.nombre</div>
+                                    </MyResultTemplate>
+                                </InputBuscaTypeahead>
+                            }
+                            else
+                            {
+                                <div><img class="mx-2" src="@detallesFactura.ProductoPresentacion.Producto.Foto" style="height:20px; width:20px;border-radius:50%;" />@detallesFactura.ProductoPresentacion.Producto.nombre.ToUpper(), @detallesFactura.ProductoPresentacion.PresentacionProducto.nombre</div>
+
+                            }
+                        </td>
+
+
+
+                        <td><input class="form-control-sm" type="number" min="1" step="1" value="@detallesFactura.cantidad" @onchange="((ChangeEventArgs e) => { detallesFactura.cantidad = Convert.ToInt32(e.Value); CalcularTotal(); })"></td>
+
+                        <td>@detallesFactura.precioUnitario</td>
+
+                        <td>$@(detallesFactura.precioUnitario * detallesFactura.cantidad)</td>
+                        <td><i class="far fa-trash-alt text-danger" @onclick="@(() => { factura.detallesFactura.Remove(detallesFactura); CalcularTotal(); })"></i></td>
+                    </tr>
+                }
+                <tr class="bg-dark text-white rounded">
+                    <th colspan="3"></th>
+
+                    <th class=""><strong>Total:</strong> $@factura.totalComprobante</th>
+                    <th></th>
+                </tr>
+            </tbody>
+
+        </table>
+    </div>
+
+    <div class="my-4">
+        <button type="submit" class="btn btn-sm btn-info btn-block">@(Id == 0 ? "Crear FacturaCompras" : "Editar FacturaCompras")</button>
+    </div>
+
+</EditForm>
+@code {
+    public int Id { get; set; } = 0;
+    public TablaGenerica<Proveedor> tablaProveedors { get; set; }
+    public FacturaCompras factura { get; set; } = new FacturaCompras();
+    public string userName { get; set; }
+    public System.Security.Claims.ClaimsPrincipal User { get; set; }
+    public List<Producto> productos { get; set; }
+    public List<ProductoPresentacion> productoPresentaciones { get; set; }
+    public List<EstadoFactura> estadosFactura { get; set; }
+    public List<Deposito> depositos { get; set; }
+    public List<TipoComprobante> tiposComprobante { get; set; }
+    public bool cargando { get; set; }
+    protected override async Task OnParametersSetAsync()
+    {
+        if (Id != 0)
+        {
+            factura = await http.GetJsonAsync<FacturaCompras>($"api/FacturaCompras/{Id}");
+        }
+    }
+
+    public async Task BuscarEstadoFactura()
+    {
+
+        estadosFactura = await http.GetJsonAsync<List<EstadoFactura>>("api/EstadoFactura");
+
+    }
+
+    public async Task ListarDepositos()
+    {
+        var respuesta = await repositorio.Get<List<Deposito>>($"api/deposito/depositosHabilitados?userName={userName}");
+        if (!respuesta.Error)
+        {
+            depositos = respuesta.Response;
+        }
+        else
+        {
+            toastService.ShowError(await respuesta.HttpResponseMessage.Content.ReadAsStringAsync());
+        }
+    }
+    protected override async Task OnInitializedAsync()
+    {
+        var authState = await authStateProvider.GetAuthenticationStateAsync();
+        User = authState.User;
+        userName = User.Identity.Name;
+        await ListarDepositos();
+        await ListarTiposComprobante();
+
+        if (Id != 0)
+        {
+            await BuscarEstadoFactura();
+        }
+    }
+    public async Task<List<Proveedor>> buscarProveedores(string proveedorName)
+    {
+
+        return await http.GetJsonAsync<List<Proveedor>>($"api/Proveedor?filtro={proveedorName}&cantidadDeRegistros=50");
+
+    }
+    public async Task<Proveedor> proveedorSeleccionado(Proveedor proveedor)
+    {
+        factura.Proveedor = proveedor;
+        factura.ProveedorId = proveedor.Id;
+
+
+        this.StateHasChanged();
+        return proveedor;
+    }
+    public async Task ListarTiposComprobante()
+    {
+        tiposComprobante = await http.GetJsonAsync<List<TipoComprobante>>("api/tipocomprobante");
+    }
+
+    public async Task CrearFactura()
+    {
+
+        //creacion de factura
+        if (Id == 0)
+        {
+            var response = await repositorio.Post<FacturaCompras>("api/FacturaCompra", factura);
+
+            if (response.Error)
+            {
+                cargando = false;
+                toastService.ShowError(await response.HttpResponseMessage.Content.ReadAsStringAsync());
+            }
+            else
+            {
+                cargando = false;
+
+                toastService.ShowSuccess("Se creó el factura correctamente!");
+                factura.detallesFactura = new List<DetalleFacturaCompras>();
+                uri.NavigateTo("/BackOffice/Compras/ListadoComprobates");
+                this.StateHasChanged();
+            }
+        }
+        //Edicion de factura
+        else
+        {
+            var response = await repositorio.Put<FacturaCompras>($"api/FacturaCompras/{factura.Id}", factura);
+
+            if (response.Error)
+            {
+                cargando = false;
+
+                toastService.ShowError(await response.HttpResponseMessage.Content.ReadAsStringAsync());
+            }
+            else
+            {
+                cargando = false;
+
+                toastService.ShowSuccess("Se editó el factura correctamente!");
+                uri.NavigateTo("/BackOffice/Compras/ListadoComprobantes");
+                this.StateHasChanged();
+            }
+        }
+    }
+    public async Task ToggleModal(string id)
+    {
+
+        await js.InvokeAsync<object>("ModalToggle", id);
+    }
+
+
+
+
+
+    public async Task<List<ProductoPresentacion>> buscarProductos(string filtro)
+    {
+        return await http.GetJsonAsync<List<ProductoPresentacion>>($"api/ProductoPresentacion/ProductosPresentacionPorProveedor?ProveedorId={factura.ProveedorId}&filtro={filtro}");
+    }
+
+
+
+    public void CalcularTotal()
+    {
+        factura.totalComprobante = factura.detallesFactura.Sum(x => x.precioUnitario * x.cantidad);
+    }
+}

@@ -1,0 +1,32 @@
+﻿@page "/BackOffice/Tesoreria/ImputacionComprobantesVenta"
+@layout BackOfficeLayout
+@inject HttpClient http
+@attribute [Authorize(Roles = "Admin, Tesoreria")]
+
+<h3>Imputacion Comprobantes Venta</h3>
+<div class="col-md-12 mx-0 p-4">
+    @if (Cliente != null)
+    {
+        <InputBuscaTypeahead ElementoSeleccionado="((Cliente cliente) => this.Cliente = cliente)" Context="cliente"
+                             SearchMethod="(async (string name) => await buscarClientes(name))">
+            <MyResultTemplate>
+                <div>#@cliente.Id @cliente.nombre, @cliente.apellido</div>
+            </MyResultTemplate>
+        </InputBuscaTypeahead>
+    }
+    else
+    {
+        <h3>#@Cliente.Id  @Cliente.apellido, @Cliente.nombre</h3>
+    }
+</div>
+
+@code {
+    public Cliente Cliente { get; set; }
+    public async Task<List<Cliente>> buscarClientes(string clienteName)
+    {
+
+        return await http.GetJsonAsync<List<Cliente>>($"api/Cliente?filtro={clienteName}&admin=true");
+
+
+    }
+}

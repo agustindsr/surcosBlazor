@@ -1,0 +1,94 @@
+﻿@layout BackOfficeLayout
+@attribute [Authorize(Roles = "Admin, Configuracion")]
+
+@page "/BackOffice/Configuraciones/ListaListaPrecios"
+@inject HttpClient http
+@inject NavigationManager uri
+@inject IJSRuntime js
+@using SurcosBlazor.Client.Repositorio
+@inject IRepositorio repositorio
+@inject IToastService toastService
+<nav aria-label="breadcrumb">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item" @onclick="@(() => uri.NavigateTo("/BackOffice/Configuraciones"))">Configuraciones</li>
+        <li class="breadcrumb-item active" aria-current="page" @onclick="@(() => uri.NavigateTo("/BackOffice/Configuraciones/ListaListaPrecios"))">Listado Listas Precios</li>
+    </ol>
+</nav>
+<div>
+    <div class="border-bottom border-secondary my-2">
+        <h2 class="">Listado Listas Precios</h2>
+    </div>
+
+    <div class="col-md-12 row mx-0 px-0 justify-content-end">
+        <div class="btn btn-olive btn-sm" style="cursor:pointer" @onclick="@(()=>uri.NavigateTo($"/BackOffice/Configuraciones/ListaPrecios/0"))">Nueva Lista</div>
+    </div>
+
+    <ListadoGenerico listado="listasPrecios">
+
+        <HayRegistros>
+            <table class="table table-sm">
+                <thead>
+                    <tr>
+                        <th>Fecha</th>
+                        <th>Tipo</th>
+                        <th>Mínimo de compra</th>
+                        <th>Clasificación</th>
+                        <th>Acciones</th>
+
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (ListaPrecios lista in listasPrecios)
+                    {
+                        <tr>
+                            <td>@lista.fecha</td>
+                            <td>@lista.TipoListaPrecio?.nombre</td>
+                            <td>@lista.TipoListaPrecio?.minimoDeCompra</td>
+                            <td>@lista.clasificacion</td>
+                            <td>
+                                 <i class="far fa-eye" style="cursor:pointer" @onclick="@(()=>uri.NavigateTo($"/BackOffice/Configuraciones/DetalleListaPrecios/{lista.Id}"))"></i>
+                                 <i class="fas fa-edit text-warning" style="cursor:pointer" @onclick="@(()=>uri.NavigateTo($"/BackOffice/Configuraciones/ListaPrecios/{lista.Id}"))"></i>
+                                                             
+                                <button class="btn btn-sm p-1" title="Eliminar" @onclick="@((async () => {listaPrecios = lista; await ModalToggle("eliminarConfirm"); this.StateHasChanged(); }))">
+                                    <i class="far fa-trash-alt text-danger"></i>
+                                </button>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+
+        </HayRegistros>
+    </ListadoGenerico>
+    
+</div>
+<ModalConfirm confirmFunc="@(async()=> await EliminarListaDePrecios(listaPrecios))" modalId="eliminarConfirm">
+    <p>¿Esta seguro que desea eliminar esta lista precios?</p>
+</ModalConfirm>
+@code{
+
+    public List<ListaPrecios> listasPrecios { get; set; }
+    public TablaGenerica<ListaPrecios> tablaGenerica;
+    public ListaPrecios listaPrecios { get; set; }
+    public async Task EliminarListaDePrecios(ListaPrecios lista)
+    {
+        await repositorio.Delete($"api/ListaPrecios/{lista.Id}");
+
+        await ListarListas();
+        toastService.ShowSuccess($"Se creó eliminó la Lista de Precio");
+
+        this.StateHasChanged();
+    }
+    protected override async Task OnInitializedAsync()
+    {
+        await ListarListas();
+    }
+    public async Task ListarListas() {
+        listasPrecios = await http.GetJsonAsync<List<ListaPrecios>>("api/ListaPrecios");
+    }
+
+    public async Task ModalToggle(string id)
+    {
+        await js.InvokeVoidAsync("ModalToggle", id);
+    }
+}

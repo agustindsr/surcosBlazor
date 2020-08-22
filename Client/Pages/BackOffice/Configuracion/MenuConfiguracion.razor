@@ -1,0 +1,108 @@
+﻿@layout BackOfficeLayout
+
+@page "/BackOffice/Configuraciones"
+@attribute [Authorize(Roles = "Admin, Configuracion")]
+    <div class="opcionesMenu mt-4">
+        <NavLink class="nav-link" href="BackOffice/Configuraciones/ListadoProductos" Match="NavLinkMatch.All">
+            <div class="itemMenu">
+                <div class="titulo">
+                    <span>Producto</span>
+                </div>
+            </div>
+        </NavLink>
+        <NavLink class="nav-link" href="BackOffice/Configuraciones/ListadoPresentacionProducto" Match="NavLinkMatch.All">
+            <div class="itemMenu">
+                <div class="titulo">
+                    <span>Presentacion Producto</span>
+                </div>
+            </div>
+        </NavLink>
+        <NavLink class="nav-link" href="BackOffice/Configuraciones/ListadoCategoriaProducto" Match="NavLinkMatch.All">
+            <div class="itemMenu">
+                <div class="titulo">
+                    <span>Categoria Producto</span>
+                </div>
+            </div>
+        </NavLink>
+        <NavLink class="nav-link" href="BackOffice/Configuraciones/ListaListaPrecios" Match="NavLinkMatch.All">
+            <div class="itemMenu">
+                <div class="titulo">
+                    <span>Listas de precios</span>
+                </div>
+            </div>
+        </NavLink>
+        <NavLink class="nav-link" href="BackOffice/Configuraciones/ListadoTipoListaPrecio" Match="NavLinkMatch.All">
+            <div class="itemMenu">
+                <div class="titulo">
+                    <span>Tipo Lista de precios</span>
+                </div>
+            </div>
+        </NavLink>
+        <NavLink class="nav-link" href="BackOffice/Configuraciones/ModificacionDeCostos" Match="NavLinkMatch.All">
+            <div class="itemMenu">
+                <div class="titulo">
+                    <span>Modificacion De Costos Fijos</span>
+                </div>
+            </div>
+        </NavLink>
+        <NavLink class="nav-link" href="BackOffice/Configuraciones/ListadoProvincias" Match="NavLinkMatch.All">
+            <div class="itemMenu">
+                <div class="titulo">
+                    <span>Provincia</span>
+                </div>
+            </div>
+        </NavLink>
+        <NavLink class="nav-link" href="BackOffice/Configuraciones/ListadoVendedores" Match="NavLinkMatch.All">
+            <div class="itemMenu">
+                <div class="titulo">
+                    <span>Vendedores</span>
+                </div>
+            </div>
+        </NavLink>
+        <NavLink class="nav-link" href="BackOffice/Configuraciones/ListadoCategoriaCliente" Match="NavLinkMatch.All">
+            <div class="itemMenu">
+                <div class="titulo">
+                    <span>Categoria Cliente</span>
+                </div>
+            </div>
+        </NavLink>
+
+
+
+
+
+
+        <NavLink class="nav-link" href="BackOffice/Configuraciones/ListadoDepositos" Match="NavLinkMatch.All">
+            <div class="itemMenu">
+                <div class="titulo">
+                    <span>Depositos</span>
+                </div>
+            </div>
+        </NavLink>
+
+
+        <NavLink class="nav-link" href="BackOffice/Configuraciones/ListadoTipoMovimientoCaja" Match="NavLinkMatch.All">
+            <div class="itemMenu">
+                <div class="titulo">
+                    <span>Tipo Movimiento Caja</span>
+                </div>
+            </div>
+        </NavLink>
+
+        <NavLink class="nav-link" href="BackOffice/Configuraciones/ListadoBanners" Match="NavLinkMatch.All">
+            <div class="itemMenu">
+                <div class="titulo">
+                    <span>Banners</span>
+                </div>
+            </div>
+        </NavLink>
+    </div>
+
+@code {
+    [CascadingParameter] private Task<AuthenticationState> authenticationState { get; set; }
+    protected override async Task OnInitializedAsync()
+    {
+        var authstate = await authenticationState;
+        var user = authstate.User.Claims.ToList();
+    }
+}

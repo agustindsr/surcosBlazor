@@ -1,0 +1,455 @@
+﻿@layout BackOfficeLayout
+@inject HttpClient http
+@inject NavigationManager uriHelper
+@inject ILoginService loginService
+@using SurcosBlazor.Client.Auth
+@attribute [Authorize(Roles = "Admin")]
+@using SurcosBlazor.Shared.Entidades
+@inject IJSRuntime js
+@inject IToastService toastService
+@page "/BackOffice/Seguridad"
+
+@if (cargando) { 
+<Loading></Loading>
+}
+<h2 class="mt-2">
+    <strong>
+        <span class="badge badge-light">
+            <strong>USUARIOS <span class="badge badge-info ml-2">@users?.Count</span></strong>
+        </span>
+    </strong>
+</h2>
+
+@*<div class="col-md-12 mx-0 row my-2">
+        <button class="btn btn-sm btn-light" @onclick="@(async ()=> { AcccionSobreUsuario = "Crear"; userInfo = new UserInfo(); await ModalToggle("User"); })">Nuevo Usuario</button>
+    </div>*@
+
+<div class="row col-md-12 mx-0 px-0">
+    <ListadoGenerico listado="users">
+        <HayRegistros>
+            <table class="table table-sm table-striped">
+                <thead class="bg-dark text-white">
+                    <tr>
+                        <td>Usuario</td>
+                        <td>Cliente</td>
+                        <td>Roles</td>
+                        <td>Vendedores</td>
+                        <td>Depositos</td>
+                        <td>Cajas</td>
+
+                        <td>Acciones</td>
+                    </tr>
+                </thead>
+                <tbody>
+
+                    @foreach (UserInfo user in users)
+                    {
+
+                        <tr>
+                            <td><h5><strong class="badge badge-light">@user.username </strong></h5></td>
+                            <td>@(user.Cliente != null ? $"#{user.ClienteId} {user.Cliente.nombre}, {user.Cliente.apellido}": "-")</td>
+                            <td>
+                                @if (user.roles.Count > 0)
+                                {
+
+                                    @foreach (Roles rol in user.roles)
+                                    {
+                                        <span class="badge badge-info mr-1">@rol.rol </span>
+
+                                    }
+
+                                }
+                            </td>
+                            <td>
+                                @if (user.vendedores.Count > 0)
+                                {
+
+                                    @foreach (Vendedor vendedor in user.vendedores)
+                                    {
+                                        <span class="badge badge-light mr-1"><img src="@vendedor.Foto" style="width:20px; height:20px; border-radius:50%" />@vendedor.nombre </span>
+
+                                    }
+
+                                }
+                            </td>
+
+                            <td>
+                                @if (user.depositos.Count > 0)
+                                {
+
+                                    @foreach (Deposito deposito in user.depositos)
+                                    {
+                                        <span class="badge badge-light mr-1">@deposito.nombre</span>
+
+                                    }
+
+                                }
+                            </td>
+                            <td>
+                                @if (user.cajas.Count > 0)
+                                {
+
+                                    @foreach (Caja caja in user.cajas)
+                                    {
+                                        <span class="badge badge-light mr-1">@caja.nombre</span>
+
+                                    }
+
+                                }
+                            </td>
+                            <td>
+                                <button class="btn btn-sm text-warning btn-sm  mb-3 mr-2 text-white border border-solid rounded " title="Editar" @onclick="@(async () => { AcccionSobreUsuario = "Editar"; userInfo = user; await ModalToggle("User"); })"><i class="fas fa-edit"></i></button>
+                                <button class="btn btn-sm text-danger  mb-3 btn-sm border border-solid rounded" title="Cambiar Clave" @onclick="@(async () => { AcccionSobreUsuario = "Cambiar Contraseña"; userInfo = user; await ModalToggle("User"); })"><i class="fas fa-key text-dark"></i></button> @*Boton Anular*@
+                                <button class="btn btn-sm text-danger  mb-3 btn-sm border border-solid rounded" title="Eliminar" @onclick="@(async () =>{userInfo = user; await ModalToggle("modalEliminar"); })"><i class="far fa-trash-alt text-danger"></i></button> @*Boton Anular*@
+
+                            </td>
+                        </tr>
+                    }
+
+                </tbody>
+            </table>
+
+        </HayRegistros>
+    </ListadoGenerico>
+</div>
+
+
+
+
+@*MODAL*@
+<div class="modal p-0 fade" id="User" data-backdrop="static" tabindex="-1" role="dialog">
+    <div class="modal-dialog modal-xl" role="document">
+        <div class="modal-content">
+            <div class="modal-header bg-dark">
+                <h5 class="modal-title"><strong class="text-white">@AcccionSobreUsuario usuario</strong></h5>
+                <button type="button" class="close" data-dismiss="modal" aria-label="Close" @onclick='(async () => { await ModalToggle("User");  })'>
+                    <span aria-hidden="true">&times;</span>
+                </button>
+            </div>
+            <div class="modal-body p-3 m-2" data-spy="scroll">
+                @*BODY *@
+                @if (AcccionSobreUsuario == "Cambiar Contraseña")
+                {
+                    <div class="col-md-12 d-flex justify-content-center p-3">
+                        <div class="form-field col-md-5">
+                            <label class="badge badge-light"><strong>Nueva Contraseña:</strong></label>
+                            <div>
+                                <input type="password" Class="form-control" @bind="@userInfo.Password" />
+                            </div>
+                            <div><strong class="text-danger">La contraseña debe tener al menos 8 caracteres + 1 caracter especial + 1 mayúscula + 1 numero.</strong></div>
+                            <div class="col-md-12 row mx-0 px-0"><button class="btn btn-sm btn-success col-md-12 mt-2" @onclick="@(async ()=> {await CambiarContraseña(); })">Cambiar Contraseña</button></div>
+
+                        </div>
+                    </div>
+                }
+                else
+                {
+
+                    <EditForm Model="userInfo" OnValidSubmit="@(async ()=> { cargando = true; await EditarUsuario();  })">
+                        <DataAnnotationsValidator />
+                        <fieldset>
+                            @if (AcccionSobreUsuario == "Crear")
+                            {
+                                <div class="form-field">
+                                    <label>Username:</label>
+                                    <div>
+                                        <InputText Class="form-control" @bind-Value="@userInfo.username" />
+                                        <ValidationMessage For="@(() => userInfo.username)" />
+                                    </div>
+                                </div>
+
+
+
+                                <div class="form-field">
+                                    <label>Contraseña:</label>
+                                    <div>
+                                        <input type="password" Class="form-control" @bind="@userInfo.Password" />
+                                        <ValidationMessage For="@(() => userInfo.Password)" />
+                                    </div>
+                                    <div><strong class="text-danger">La contraseña debe tener al menos 8 caracteres + 1 caracter especial + 1 mayúscula + 1 numero.</strong></div>
+                                </div>
+                            }
+
+
+
+                            @*ROLES DE USUARIO*@
+
+
+                            <div class="bg-dark text-white mt-4 p-2 alert">ROLES</div>
+                            <div class="col-md-12 row mx-0 px-0">
+                                <div class="col-md-6 mx-0 px-0 border border-solid">
+                                    <h5 class="col-md-12 badge badge-light border border-solid"><strong>DISPONIBLES</strong></h5>
+                                    @foreach (Roles r in roles)
+                                    {
+                                        @if (userInfo.roles.Where(x => x.rol == r.rol).ToList().Count > 0)
+                                        {
+
+                                        }
+                                        else
+                                        {
+                                            <span class="badge badge-info">@r.rol <span class="badge mx-1 btn" @onclick="@(()=> AgregarRol(r))"><i class="fas fa-plus-circle"></i></span></span>
+                                        }
+                                    }
+                                </div>
+                                <div class="col-md-6 mx-0 px-0 border border-solid">
+                                    <h5 class="col-md-12 badge badge-light border border-solid"><strong>HABILITADOS</strong></h5>
+                                    <h5 class="col-md-12 ">
+                                        @foreach (Roles r in userInfo.roles)
+                                        {
+
+                                            <span class="badge badge-info">@r.rol <span class="badge mx-1 btn" @onclick="@(()=> AgregarRol(r))"><i class="fas fa-times text-danger"></i></span></span>
+                                        }
+                                    </h5>
+                                </div>
+
+                            </div>
+
+                            @*Vendedores*@
+                            <div class="bg-dark text-white mt-4 p-2 alert">Vendedores</div>
+                            <div class="col-md-12 row mx-0 px-0">
+                                <div class="col-md-6 mx-0 px-0 border border-solid">
+                                    <h5 class="col-md-12 badge badge-light border border-solid"><strong>DISPONIBLES</strong></h5>
+                                    @foreach (Vendedor vendedor in vendedores)
+                                    {
+                                        @if (!(userInfo.vendedores.Where(x => x.Id == vendedor.Id).ToList().Count > 0))
+                                        {
+                                            <span class="badge badge-info"><img src="@vendedor.Foto" style="width:25px; height:25px; border-radius:50%" />@vendedor.nombre <span class="badge  mx-1 btn" @onclick="@(()=> AgregarVendedor(vendedor, false))"><i class="fas fa-plus-circle"></i></span></span>
+                                        }
+                                    }
+                                </div>
+                                <div class="col-md-6 mx-0 px-0 border border-solid">
+                                    <h5 class="col-md-12 badge badge-light border border-solid"><strong>HABILITADAS</strong></h5>
+                                    <h5 class="col-md-12 ">
+                                        @foreach (Vendedor vendedor in userInfo.vendedores)
+                                        {
+
+                                            <span class="badge badge-info"><img src="@vendedor.Foto" style="width:25px; height:25px; border-radius:50%" />@vendedor.nombre <span class="badge  mx-1 btn" @onclick="@(()=> AgregarVendedor(vendedor, true))"><i class="fas fa-times text-danger"></i></span></span>
+                                        }
+                                    </h5>
+                                </div>
+                            </div>
+
+
+                            @*Depositos*@
+                            <div class="bg-dark text-white mt-4 p-2 alert">Depositos</div>
+                            <div class="col-md-12 row mx-0 px-0">
+                                <div class="col-md-6 mx-0 px-0 border border-solid">
+                                    <h5 class="col-md-12 badge badge-light border border-solid"><strong>DISPONIBLES</strong></h5>
+                                    @foreach (Deposito deposito in depositos)
+                                    {
+                                        @if (!(userInfo.depositos.Where(x => x.Id == deposito.Id).ToList().Count > 0))
+                                        {
+                                            <span class="badge badge-info">@deposito.nombre <span class="badge  mx-1 btn" @onclick="@(()=> AgregarDeposito(deposito, false))"><i class="fas fa-plus-circle"></i></span></span>
+                                        }
+                                    }
+                                </div>
+                                <div class="col-md-6 mx-0 px-0 border border-solid">
+                                    <h5 class="col-md-12 badge badge-light border border-solid"><strong>HABILITADAS</strong></h5>
+                                    <h5 class="col-md-12 ">
+                                        @foreach (Deposito deposito in userInfo.depositos)
+                                        {
+
+                                            <span class="badge badge-info">@deposito.nombre <span class="badge  mx-1 btn" @onclick="@(()=> AgregarDeposito(deposito, true))"><i class="fas fa-times text-danger"></i></span></span>
+                                        }
+                                    </h5>
+                                </div>
+                            </div>
+
+                            @*Cajas*@
+                            <div class="bg-dark text-white mt-4 p-2 alert">Cajas</div>
+                            <div class="col-md-12 row mx-0 px-0">
+                                <div class="col-md-6 mx-0 px-0 border border-solid">
+                                    <h5 class="col-md-12 badge badge-light border border-solid"><strong>DISPONIBLES</strong></h5>
+                                    @foreach (Caja caja in cajas)
+                                    {
+                                        @if (!(userInfo.cajas.Where(x => x.Id == caja.Id).ToList().Count > 0))
+                                        {
+                                            <span class="badge badge-info">@caja.nombre <span class="badge  mx-1 btn" @onclick="@(()=> AgregarCaja(caja, false))"><i class="fas fa-plus-circle"></i></span></span>
+                                        }
+                                    }
+                                </div>
+                                <div class="col-md-6 mx-0 px-0 border border-solid">
+                                    <h5 class="col-md-12 badge badge-light border border-solid"><strong>HABILITADAS</strong></h5>
+                                    <h5 class="col-md-12 ">
+                                        @foreach (Caja caja in userInfo.cajas)
+                                        {
+
+                                            <span class="badge badge-info">@caja.nombre <span class="badge  mx-1 btn" @onclick="@(()=> AgregarCaja(caja, true))"><i class="fas fa-times text-danger"></i></span></span>
+                                        }
+                                    </h5>
+                                </div>
+                            </div>
+
+                            <div class="col-md-12 row my-2 mx-0 px-0 my-4"><button type="submit" class="btn btn-sm btn-success col-md-12">GUARDAR</button></div>
+                        </fieldset>
+                    </EditForm>
+                }
+            </div>
+
+        </div>
+
+    </div>
+</div>
+
+
+<ModalConfirm modalId="modalEliminar" confirmFunc='(async () => { await EliminarUsuario(); await ListarUsuarios(); toastService.ShowInfo("Se elimino correctamente");})'>
+    <childContent>
+        <p>¿Estas seguro que desear eliminar este usuario? Tambíen se eliminará su cliente asociado.</p>
+    </childContent>
+</ModalConfirm>
+
+@code {
+    public string AcccionSobreUsuario { get; set; } = String.Empty;
+    public List<UserInfo> users { get; set; }
+    public List<Roles> rolesseleccionados { get; set; } = new List<Roles>();
+    public List<Roles> roles { get; set; } = new List<Roles>();
+    public List<Vendedor> vendedores { get; set; } = new List<Vendedor>();
+    public List<Deposito> depositos { get; set; } = new List<Deposito>();
+    public List<Caja> cajas { get; set; } = new List<Caja>();
+    public bool cargando { get; set; }
+    private UserInfo userInfo = new UserInfo();
+    protected async Task ListarUsuarios()
+    {
+        users = await http.GetJsonAsync<List<UserInfo>>("/api/Account/Usuarios");
+
+    }
+    protected override async Task OnInitializedAsync()
+    {
+        await ListarUsuarios();
+        roles = await http.GetJsonAsync<List<Roles>>("api/Account/Roles");
+        vendedores = await http.GetJsonAsync<List<Vendedor>>("api/Vendedor?cantidadDeRegistros=50");
+        depositos = await http.GetJsonAsync<List<Deposito>>("api/Deposito?cantidadDeRegistros=50");
+        cajas = await http.GetJsonAsync<List<Caja>>("api/Caja?cantidadDeRegistros=50");
+
+    }
+
+    private async Task CrearUsuario()
+    {
+
+
+        var result = await http.PostJsonAsync<UserToken>("api/Account/crear", userInfo);
+        await ListarUsuarios();
+        cargando = false;
+
+        AcccionSobreUsuario = "";
+        await ModalToggle("User");
+        await Alerta("top-end", "success", "Se creó el usuario correctamente");
+
+
+    }
+
+    public void AgregarRol(Roles rol)
+    {
+
+        if (userInfo.roles.Where(x => x.rol.Contains(rol.rol)).ToList().Count > 0)
+        {
+            userInfo.roles.Remove(userInfo.roles.Where(x => x.rol == rol.rol).First());
+            foreach (var r in userInfo.roles)
+            {
+                Console.WriteLine(r.rol);
+            }
+        }
+        else
+        {
+            userInfo.roles.Add(rol);
+            foreach (var r in userInfo.roles)
+            {
+                Console.WriteLine(r.rol);
+            }
+        }
+
+
+    }
+
+    public void AgregarVendedor(Vendedor vendedor, bool bandera)
+    {
+
+        if (bandera)
+        {
+            userInfo.vendedores.Remove(userInfo.vendedores.Where(x => x.Id == vendedor.Id).First());
+        }
+        else
+        {
+            userInfo.vendedores.Add(vendedor);
+        }
+
+        this.StateHasChanged();
+    }
+    public void AgregarDeposito(Deposito deposito, bool bandera)
+    {
+
+        if (bandera)
+        {
+            userInfo.depositos.Remove(userInfo.depositos.Where(x => x.Id == deposito.Id).First());
+
+        }
+        else
+        {
+            userInfo.depositos.Add(deposito);
+        }
+
+        this.StateHasChanged();
+    }
+    public void AgregarCaja(Caja caja, bool bandera)
+    {
+
+        if (bandera)
+        {
+            userInfo.cajas.Remove(userInfo.cajas.Where(x => x.Id == caja.Id).First());
+
+        }
+        else
+        {
+            userInfo.cajas.Add(caja);
+        }
+
+        this.StateHasChanged();
+    }
+
+    protected async Task EditarUsuario()
+    {
+        userInfo.Cliente.Domicilio = null;
+        userInfo.Cliente.Categoria = null;
+
+        await http.PutJsonAsync<UserInfo>($"/api/Account/Editar/{userInfo.id}", userInfo);
+        await ListarUsuarios();
+        AcccionSobreUsuario = "";
+        await ModalToggle("User");
+        cargando = false;
+        await Alerta("top-end", "info", "Se editó el usuario correctamente");
+    }
+
+    protected async Task Login(UserInfo user)
+    {
+
+        var result = await http.PostJsonAsync<UserToken>("api/Account/login", user);
+        await loginService.Login(result.Token);
+        uriHelper.NavigateTo("");
+
+    }
+    protected async Task CambiarContraseña()
+    {
+        await http.PostJsonAsync("api/Account/CambiarContraseña", userInfo);
+        await Alerta("top-end", "success", "Se cambio la contraseña del usuario correctamente");
+        AcccionSobreUsuario = "";
+
+    }
+    protected async Task EliminarUsuario()
+    {
+
+        await http.DeleteAsync($"api/Account/EliminarUsuario/{userInfo.id}");
+        await Alerta("top-end", "info", "Se elimino");
+        await ListarUsuarios();
+        await ModalToggle("modalEliminar");
+    }
+    public async Task Alerta(string posicion = "top-end", string icono = "success", string mensaje = "Se creó el producto con éxito")
+    {
+        await js.InvokeAsync<object>("alerta", posicion, icono, mensaje);
+    }
+
+    public async Task ModalToggle(string id)
+    {
+        await js.InvokeAsync<object>("ModalToggle", id);
+    }
+
+}

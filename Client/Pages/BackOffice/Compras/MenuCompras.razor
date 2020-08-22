@@ -1,0 +1,23 @@
+﻿@page "/BackOffice/Compras"
+@layout BackOfficeLayout
+@attribute [Authorize(Roles = "Admin, Compras")]
+
+<div class="opcionesMenu mt-4">
+    <NavLink class="nav-link" href="BackOffice/Compras/ListadoProveedores" Match="NavLinkMatch.All">
+        <div class="itemMenu">
+            <div class="titulo">
+                <span>Proveedores</span>
+            </div>
+        </div>
+    </NavLink>
+    <NavLink class="nav-link" href="BackOffice/Compras/ListadoComprobantes" Match="NavLinkMatch.All">
+        <div class="itemMenu">
+            <div class="titulo">
+                <span>Comprobantes</span>
+            </div>
+        </div>
+    </NavLink>
+</div>
+@code {
+
+}

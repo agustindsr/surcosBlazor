@@ -1,0 +1,167 @@
+﻿@inject HttpClient http
+@inject IJSRuntime js
+@inject IToastService toastService
+@attribute [Authorize(Roles = "Admin, Configuracion")]
+
+@if (cargando)
+{
+    <Loading></Loading>
+}
+
+@if (productoPresentacion != null)
+{
+    <EditForm Model="productoPresentacion" OnValidSubmit="@(async()=> {cargando = true; await Confirmar(); })">
+        <div class="form-group">
+            <label>Proveedor</label>
+            @if (productoPresentacion.Proveedor == null || productoPresentacion.ProveedorId == 0)
+            {
+                <InputBuscaTypeahead ElementoSeleccionado="((Proveedor proveedor) => { proveedorSeleccionado(proveedor); return proveedor; })" Context="proveedor"
+                                     SearchMethod="(async (string name) => await buscarProveedores(name))">
+                    <MyResultTemplate>
+                        <div>#@proveedor.Id @proveedor.razonSocial</div>
+                    </MyResultTemplate>
+                </InputBuscaTypeahead>
+            }
+            else
+            {
+                <div class="badge badge-light">#@productoPresentacion.ProveedorId @productoPresentacion.Proveedor.razonSocial</div><i class="fa fas-time text-danger" @onclick="(() => { productoPresentacion.Proveedor = null; productoPresentacion.ProveedorId = null; })"><i class="fas fa-times text-danger" style="cursor:pointer"></i></i>
+            }
+
+        </div>
+
+        <div class="form-group">
+            <div><label>Presentacion</label></div>
+
+
+            <ListadoGenerico listado="presentacionProductos">
+                <HayRegistros>
+                    <div>
+                        <select @onchange="@((ChangeEventArgs e)=> {
+                         productoPresentacion.PresentacionProducto = presentacionProductos.Where(x => x.Id == Convert.ToInt32(e.Value.ToString())).Single();
+    productoPresentacion.PresentacionProductoId = Convert.ToInt32(e.Value.ToString());
+                     })">
+
+                            <option selected disabled>-- Seleccione una presentación --</option>
+                            @foreach (PresentacionProducto presentacionProducto in presentacionProductos)
+                            {
+                                <option selected="@(productoPresentacion.PresentacionProducto != null ? (presentacionProducto.Id == productoPresentacion.PresentacionProductoId) : false)"
+                                        value="@presentacionProducto.Id">
+                                    @presentacionProducto.nombre
+                                </option>
+                            }
+                        </select>
+                    </div>
+                </HayRegistros>
+            </ListadoGenerico>
+
+        </div>
+        <div class="form-group">
+            <label>Alerta de Stock</label>
+            <input type="number" min="0" step="1" class="form-control" @bind="productoPresentacion.cantidadStockMinima" />
+        </div>
+        <div class="form-group">
+            <label>Descripcion</label>
+            <textarea class="form-control" @bind="productoPresentacion.descripcion"></textarea>
+        </div>
+        <div class="form-group">
+            <label>Formulado</label>
+            <div class="d-flex"> <input type="checkbox" class="form-control" @bind="@productoPresentacion.esFormulado" /><span>@(productoPresentacion.esFormulado ? " On" : " Off")</span></div>
+        </div>
+
+
+        @if (!productoPresentacion.esFormulado)
+        {
+            <div class="form-group">
+                <label>Costo</label>
+                <input class="form-control" type="number" step="0.001" @bind="productoPresentacion.costo" />
+            </div>
+        }
+
+        <button class="btn-outline-olive btn-block" type="submit">@accion</button>
+
+    </EditForm>
+}
+@code {
+    [Parameter] public ProductoPresentacion productoPresentacion { get; set; }
+    [Parameter] public Producto producto { get; set; }
+    public List<PresentacionProducto> presentacionProductos { get; set; }
+    [Parameter] public string accion { get; set; }
+    [Parameter] public EventCallback callback { get; set; }
+    public bool cargando { get; set; }
+    public async Task Confirmar()
+    {
+        try
+        {
+            productoPresentacion.Proveedor = null;
+            if (accion == "Crear")
+            {
+                productoPresentacion.ProductoId = producto.Id;
+                productoPresentacion.PresentacionProducto = null;
+                productoPresentacion.Proveedor = null;
+
+                await http.PostJsonAsync("api/ProductoPresentacion", productoPresentacion);
+                await CloseAllModals();
+
+                await callback.InvokeAsync(new Object());
+                cargando = false;
+
+                toastService.ShowSuccess($"Se creo correctamente la Presentacion del producto");
+
+            }
+            if (accion == "Editar")
+            {
+                productoPresentacion.Proveedor = null;
+                productoPresentacion.Producto = null;
+                productoPresentacion.PresentacionProducto = null;
+                productoPresentacion.FormulaProducto = null;
+
+                await http.PutJsonAsync($"api/ProductoPresentacion/{productoPresentacion.Id}", productoPresentacion);
+                await CloseAllModals();
+
+                await callback.InvokeAsync(new Object());
+
+                cargando = false;
+                toastService.ShowSuccess($"Se editó correctamente Presentacion del producto");
+
+            }
+        }
+        catch (Exception ex)
+        {
+            await CloseAllModals();
+
+            await callback.InvokeAsync(new Object());
+            cargando = false;
+            toastService.ShowError($"Ocurrió un error al intentar crear el pructo {ex.Message}");
+
+        }
+
+    }
+    public async Task CloseAllModals()
+    {
+
+        await js.InvokeAsync<object>("CloseAllModals");
+    }
+    protected override async Task OnInitializedAsync()
+    {
+        await ListarPresentacionesProducto();
+    }
+    public async Task<List<Proveedor>> buscarProveedores(string proveedorName)
+    {
+
+        return await http.GetJsonAsync<List<Proveedor>>($"api/Proveedor?filtro={proveedorName}&cantidadDeRegistros=50");
+
+    }
+    public async Task ListarPresentacionesProducto()
+    {
+        presentacionProductos = await http.GetJsonAsync<List<PresentacionProducto>>("api/PresentacionProducto?cantidadDeRegistros=50");
+    }
+    public async Task<Proveedor> proveedorSeleccionado(Proveedor proveedor)
+    {
+        productoPresentacion.Proveedor = proveedor;
+        productoPresentacion.ProveedorId = proveedor.Id;
+
+
+        this.StateHasChanged();
+        return proveedor;
+    }
+}

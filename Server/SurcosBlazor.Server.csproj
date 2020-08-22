@@ -1,0 +1,68 @@
+﻿<Project Sdk="Microsoft.NET.Sdk.Web">
+
+  <PropertyGroup>
+    <TargetFramework>netcoreapp3.1</TargetFramework>
+    <LangVersion>7.3</LangVersion>
+    <UserSecretsId>5775b12f-f416-49a3-924d-636e38993d66</UserSecretsId>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Compile Remove="Migrations\20200504004251_Cascade.cs" />
+    <Compile Remove="Migrations\20200504004251_Cascade.Designer.cs" />
+    <Compile Remove="Migrations\20200504230819_OnDeleteConfiguration.cs" />
+    <Compile Remove="Migrations\20200504230819_OnDeleteConfiguration.Designer.cs" />
+    <Compile Remove="Migrations\20200505234017_removeEnabledCatProducto.cs" />
+    <Compile Remove="Migrations\20200505234017_removeEnabledCatProducto.Designer.cs" />
+    <Compile Remove="Migrations\20200507205012_detallesFormula2.cs" />
+    <Compile Remove="Migrations\20200507205012_detallesFormula2.Designer.cs" />
+    <Compile Remove="Migrations\20200507205324_detallesFormula2.cs" />
+    <Compile Remove="Migrations\20200507205324_detallesFormula2.Designer.cs" />
+    <Compile Remove="Migrations\20200510234628_quitarEnabledFormula2.cs" />
+    <Compile Remove="Migrations\20200510234628_quitarEnabledFormula2.Designer.cs" />
+    <Compile Remove="Migrations\20200517000723_latLong.cs" />
+    <Compile Remove="Migrations\20200517000723_latLong.Designer.cs" />
+    <Compile Remove="Migrations\20200525214239_datosPedidoCliente.cs" />
+    <Compile Remove="Migrations\20200525214239_datosPedidoCliente.Designer.cs" />
+    <Compile Remove="Migrations\20200729155039_proveedorProductoPresentacion.cs" />
+    <Compile Remove="Migrations\20200729155039_proveedorProductoPresentacion.Designer.cs" />
+    <Compile Remove="Migrations\20200729160009_proveedorProductoPresentacion.cs" />
+    <Compile Remove="Migrations\20200729160009_proveedorProductoPresentacion.Designer.cs" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Azure.Storage.Blobs" Version="12.4.4" />
+    <PackageReference Include="Azure.Storage.Files.Shares" Version="12.1.0" />
+    <PackageReference Include="Azure.Storage.Queues" Version="12.2.0" />
+    <PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="3.1.3" />
+    <PackageReference Include="Microsoft.AspNetCore.Blazor.Server" Version="3.1.0-preview3.19555.2" />
+    <PackageReference Include="Microsoft.AspNetCore.Identity.EntityFrameworkCore" Version="3.1.3" />
+    <PackageReference Include="Microsoft.AspNetCore.Mvc.NewtonsoftJson" Version="3.1.3" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore" Version="3.1.3" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="3.1.3">
+      <PrivateAssets>all</PrivateAssets>
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+    </PackageReference>
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Sqlite" Version="3.1.2" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.SqlServer" Version="3.1.3" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Tools" Version="3.1.3">
+      <PrivateAssets>all</PrivateAssets>
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+    </PackageReference>
+    <PackageReference Include="Microsoft.Extensions.Azure" Version="1.0.0" />
+    <PackageReference Include="Microsoft.VisualStudio.Web.CodeGeneration.Design" Version="3.1.4" />
+    <PackageReference Include="WindowsAzure.Storage" Version="9.3.3" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Client\SurcosBlazor.Client.csproj" />
+    <ProjectReference Include="..\Shared\SurcosBlazor.Shared.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Folder Include="DataAccess\" />
+    <Folder Include="Context\" />
+    <Folder Include="wwwroot\" />
+    <Folder Include="wwwroot\vendedores\" />
+  </ItemGroup>
+
+</Project>

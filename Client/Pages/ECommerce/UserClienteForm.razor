@@ -1,0 +1,330 @@
+﻿@inject HttpClient http
+@using System.Net.Http;
+@using System.Text;
+@using System.Text.Json;
+@using SurcosBlazor.Client.Auth
+@inject IToastService toastService
+@inject IRepositorio repositorio
+@inject ILoginService loginService
+@inject IJSRuntime js
+
+<style>
+    #map {
+        height: 250px;
+        background: rgb(200,200,200);
+    }
+
+    .clienteForm {
+        border-top: 10px solid #56A4E8;
+        padding: 20px 20px 0px 20px;
+    }
+</style>
+
+@if (cargando)
+{
+    <Loading></Loading>
+}
+<div class="clienteForm">
+    <EditForm Model="userClienteInfo" OnValidSubmit="@(async()=>{ cargando = true; await Crear(); })" OnInvalidSubmit='@(()=>Console.WriteLine("Ocurrio un eeror"))'>
+        <Blazored.FluentValidation.FluentValidationValidator />
+        <ValidationSummary></ValidationSummary>
+        @if (error)
+        {
+
+            <div class="my-3"><strong class="text-danger">@errorMessage</strong></div>
+        }
+        <div class="col-md-12 d-flex justify-content-end"><i class="fas fa-times mr-2" style="cursor:pointer" @onclick="@(async()=> await ToggleModal("registro"))"></i></div>
+        <div class="col-md-12 row px-0 mx-0">
+
+            <fieldset class="col-md-12 col-xs-12 mx-0 px-0 border-top">
+                <legend class="mx-0 px-0">Datos Personales</legend>
+                <div class="col-md-12 row mx-0 px-0">
+                    <div class="col-md-6 col-xs-12 mx-0 px-0">
+                        <div class="mt-2 col-md-12">
+                            <InputMaterialize requerido="true" class="col-md-12" name="nombre" label="Nombre" @bind-Value="userClienteInfo.Cliente.nombre"></InputMaterialize>
+
+                            <ValidationMessage For="(() => userClienteInfo.Cliente.nombre)"></ValidationMessage>
+
+                        </div>
+                        <div class="mt-2 col-md-12">
+                            <InputMaterialize requerido="true" class="col-md-12" name="apellido" label="Apellido" @bind-Value="userClienteInfo.Cliente.apellido"></InputMaterialize>
+                            <ValidationMessage For="(() => userClienteInfo.Cliente.apellido)"></ValidationMessage>
+
+                        </div>
+                    </div>
+                    <div class="col-md-6 col-12  mx-0 px-0">
+                        <div class="mt-2 col-md-12">
+                            <InputMaterialize requerido="true" class="col-md-12" name="email" label="Email" @bind-Value="userClienteInfo.Cliente.email"></InputMaterialize>
+                            <ValidationMessage For="(() => userClienteInfo.Cliente.email)"></ValidationMessage>
+
+                        </div>
+                        @*<div class="mt-2 col-md-12">
+
+                            <InputMaterialize class="col-md-12" name="celular" label="Celular" @bind-Value="userClienteInfo.Cliente.celular"></InputMaterialize>
+                            <ValidationMessage For="(() => userClienteInfo.Cliente.celular)"></ValidationMessage>
+
+                        </div>*@
+                    <div class="mt-2 col-12 col-md-12 row">
+                        <div class="col-3 col-md-3">
+                            <InputMaterialize cssClass="col-12 col-md-12 mx-0 px-0" requerido="true" label="C.Área" class="col-12 col-md-12" type="text" pattern="\d*" minlength="3" maxlength="3" name="celular" @bind-Value="codigoArea" @onblur="(()=> { userClienteInfo.Cliente.celular = codigoArea + celSinQuince; })"></InputMaterialize>
+                        </div>
+                        <div class="col-6 col-md-6">
+                            
+                            <InputMaterialize cssClass="col-12 col-md-12 mx-0 px-0"  requerido="true" label="Número sin 15" class="col-12 col-md-12" type="text" pattern="\d*" minlength="7" maxlength="7" name="celular" @bind-Value="celSinQuince" @onblur="(()=> { userClienteInfo.Cliente.celular = codigoArea + celSinQuince; })"></InputMaterialize>
+                        </div>
+                        <div class="col-3 col-md-3 d-flex align-items-center"><strong>@userClienteInfo.Cliente.celular</strong></div>
+
+                        <ValidationMessage For="(() => userClienteInfo.Cliente.celular)"></ValidationMessage>
+
+                    </div>
+                        </div>
+                </div>
+            </fieldset>
+            @if (userClienteInfo.Cliente.Id == 0)
+            {
+                <fieldset class="col-md-12 col-xs-12 mx-0 px-0 border-top">
+                    <div>
+
+                        <div class="my-4">
+                            <p>Debes recordar esta contraseña para luego poder ingresar con ella.</p>
+                            <InputMaterialize name="contraseña" class="col-md-12" label="Contraseña" @bind-Value="userClienteInfo.Password" type="password"></InputMaterialize>
+                            <ValidationMessage For="(() => userClienteInfo.Password)"></ValidationMessage>
+                        </div>
+
+
+                    </div>
+                </fieldset>
+            }
+            @*DIRECCION*@
+            <fieldset class="col-md-12 mx-0 px-0 row mt-2 border-top">
+
+                <legend class="mx-0 px-0"> Direccion de Entrega</legend>
+
+                <div class="col-md-12 row mx-0 px-0 mt-1">
+                    <div class="col-md-4">
+                        <SelectGenerico Label="Provincia"
+                                        SelectItem="(async(Provincia prov) => { await ChangeProvincia(prov); await ActualizarMapa(); })"
+                                        T="Provincia"
+                                        TItemActual="userClienteInfo.Cliente.Domicilio.Provincia"
+                                        TList="provincias"
+                                        MsjDefault="-- Elija una provincia --" Context="Provincia">
+                            <TTemplate>
+                                @Provincia.nombre
+                            </TTemplate>
+
+                        </SelectGenerico>
+                        <ValidationMessage For="(() => userClienteInfo.Cliente.Domicilio.Provincia)"></ValidationMessage>
+
+                    </div>
+                    <div class="col-md-4">
+
+                        <SelectGenerico Label="Departamento" Context="Departamento"
+                                        SelectItem="(async(Departamento departamento) => {ChangeDepartamento(departamento); await ActualizarMapa(); })"
+                                        T="Departamento"
+                                        TItemActual="userClienteInfo.Cliente.Domicilio.Departamento"
+                                        TList="departamentos"
+                                        MsjDefault="-- Elija un Departamento --">
+                            <TTemplate>
+                                @Departamento.nombre
+                            </TTemplate>
+                        </SelectGenerico>
+                        <ValidationMessage For="(() => userClienteInfo.Cliente.Domicilio.Departamento)"></ValidationMessage>
+
+                    </div>
+                </div>
+
+
+                <div class="col-md-12 row px-0 mx-0">
+                    <div class="col-md-3 mt-2 pl-0 mr-2 mx-xs-0">
+                        <InputMaterialize class="col-md-12" label="Calle" name="calle" @bind-Value="userClienteInfo.Cliente.Domicilio.calle" @onblur="ActualizarMapa"></InputMaterialize>
+
+                        <ValidationMessage For="(() => userClienteInfo.Cliente.Domicilio.calle)"></ValidationMessage>
+
+                    </div>
+                    <div class="col-md-2 mt-2 px-0 mx-2 mx-xs-0">
+                        <InputMaterialize class="col-md-12" label="Numero" name="numero" @bind-Value="userClienteInfo.Cliente.Domicilio.numero" @onblur="ActualizarMapa"></InputMaterialize>
+                        <ValidationMessage For="(() => userClienteInfo.Cliente.Domicilio.numero)"></ValidationMessage>
+
+                    </div>
+
+
+                    <div class="mt-2 col-md-1 px-0 mx-2 mx-xs-0">
+                        <InputMaterialize class="col-md-12" label="Piso" name="piso" @bind-Value="userClienteInfo.Cliente.Domicilio.piso"></InputMaterialize>
+
+                    </div>
+                    <div class="mt-2  col-md-2  mx-2 mx-xs-0">
+                        <InputMaterialize class="col-md-12" label="Manzana" name="manzana" @bind-Value="userClienteInfo.Cliente.Domicilio.manzana"></InputMaterialize>
+
+                    </div>
+                </div>
+                <div id="map" class="col-md-12 row mx-0 px-0 my-2"></div>
+
+
+            </fieldset>
+        </div>
+        <button type="submit" class="btn btn-sm btn-block btn-info my-3 col-md-12 mx-0 px-0">@(userClienteInfo.Cliente.Id == 0 ? "Crear":"Editar")</button>
+    </EditForm>
+</div>
+@code {
+    [Parameter]
+    public UserClienteInfo userClienteInfo { get; set; } = new UserClienteInfo();
+    public List<Provincia> provincias { get; set; } = new List<Provincia>();
+    public List<Departamento> departamentos { get; set; } = new List<Departamento>();
+    public bool error { get; set; } = false;
+    public string errorMessage { get; set; }
+    public UserInfo userInfo { get; set; } = new UserInfo();
+    [Parameter] public Func<int, Task> callback { get; set; }
+    public bool cargando { get; set; } = false;
+    public string codigoArea { get; set; }
+    public string celSinQuince { get; set; }
+
+    public async Task Crear()
+    {
+        this.userClienteInfo.Cliente.Domicilio.Provincia = null;
+        this.userClienteInfo.Cliente.Domicilio.Departamento = null;
+        if (userClienteInfo.Cliente.Id == 0)
+        {
+            var enviarJSON = JsonSerializer.Serialize(userClienteInfo);
+            var enviarContent = new StringContent(enviarJSON, Encoding.UTF8, "application/json");
+            var result = await http.PostAsync("api/Account/CrearUserCliente", enviarContent);
+            if (!result.IsSuccessStatusCode)
+            {
+                cargando = false;
+                error = true;
+                errorMessage = await result.Content.ReadAsStringAsync();
+                errorMessage = errorMessage.Count() > 50 ? "Ocurrió un error" : errorMessage;
+            }
+            else
+            {
+                userInfo.username = userClienteInfo.Cliente.email;
+                userInfo.Password = userClienteInfo.Password;
+                await LoginUsuario();
+                userClienteInfo = new UserClienteInfo();
+                cargando = false;
+
+            }
+        }
+        else {
+            var enviarJSON = JsonSerializer.Serialize(userClienteInfo);
+            var enviarContent = new StringContent(enviarJSON, Encoding.UTF8, "application/json");
+            var result = await repositorio.Put($"api/Cliente/{userClienteInfo.Cliente.Id}", userClienteInfo.Cliente);
+            if (result.Error)
+            {
+                cargando = false;
+
+                toastService.ShowError("Ocurrió un error");
+
+            }
+            else
+            {
+
+                cargando = false;
+                toastService.ShowSuccess("Se editó correctamente");
+
+            }
+
+        }
+    }
+
+    protected override async Task OnParametersSetAsync()
+    {
+        @if (userClienteInfo.Cliente.Id != 0)
+                {
+                    userClienteInfo.Password = "contraseñaFalsa";
+         
+
+              codigoArea  = userClienteInfo.Cliente.celular.Substring(0, 3);
+            celSinQuince  = userClienteInfo.Cliente.celular.Substring(3, 7);
+
+        }
+    }
+    public async Task BuscarDepartamentos() {
+        departamentos = await http.GetJsonAsync<List<Departamento>>($"api/departamento?ProvinciaId={userClienteInfo.Cliente.Domicilio.ProvinciaId}");
+    }
+    protected override async Task OnInitializedAsync()
+    {
+        provincias = await http.GetJsonAsync<List<Provincia>>("api/provincia");
+        provincias = provincias.Where(x => x.eCommerce == true).ToList();
+    }
+    private async Task<UserInfo> DeserializarRespuesta<UserClienteInfo>(HttpResponseMessage httpResponse, JsonSerializerOptions jsonSerializerOptions)
+    {
+        var responseString = await httpResponse.Content.ReadAsStringAsync();
+        return JsonSerializer.Deserialize<UserInfo>(responseString, jsonSerializerOptions);
+    }
+
+    public async Task ChangeProvincia(Provincia provincia)
+    {
+        departamentos = await http.GetJsonAsync<List<Departamento>>($"api/departamento?ProvinciaId={provincia.Id}");
+        this.userClienteInfo.Cliente.Domicilio.Provincia = provincia;
+        this.userClienteInfo.Cliente.Domicilio.ProvinciaId = provincia.Id;
+        this.userClienteInfo.Cliente.Domicilio.Departamento = null;
+        this.userClienteInfo.Cliente.Domicilio.DepartamentoId = 0;
+
+        this.StateHasChanged();
+
+    }
+
+    public void ChangeDepartamento(Departamento departamento)
+    {
+        this.userClienteInfo.Cliente.Domicilio.Departamento = departamento;
+        this.userClienteInfo.Cliente.Domicilio.DepartamentoId = departamento.Id;
+
+    }
+
+
+    public async Task ActualizarMapa()
+    {
+        if (userClienteInfo.Cliente.Domicilio.numero != 0 && !string.IsNullOrWhiteSpace(userClienteInfo.Cliente.Domicilio.calle) && userClienteInfo.Cliente.Domicilio.Provincia != null && userClienteInfo.Cliente.Domicilio.Departamento != null && !string.IsNullOrWhiteSpace(userClienteInfo.Cliente.Domicilio.Departamento.nombre) && !string.IsNullOrWhiteSpace(userClienteInfo.Cliente.Domicilio.Provincia.nombre))
+        {
+            List<decimal> coords = await js.InvokeAsync<List<decimal>>("buscarCoordenadas", $"{userClienteInfo.Cliente.Domicilio.numero}+{userClienteInfo.Cliente.Domicilio.calle}+{userClienteInfo.Cliente.Domicilio.Departamento.nombre}+{userClienteInfo.Cliente.Domicilio.Provincia.nombre}+Argentina", "map");
+            userClienteInfo.Cliente.Domicilio.latitud = coords[0];
+            userClienteInfo.Cliente.Domicilio.longitud = coords[1];
+
+        }
+        else
+        {
+            Console.WriteLine("No estan todos los campos completos");
+        }
+    }
+    public async Task ToggleModal(string id)
+    {
+        await js.InvokeAsync<object>("ModalToggle", id);
+    }
+    private async Task LoginUsuario()
+    {
+        if (userInfo.username != "" && userInfo.username != null && userInfo.Password != "" && userInfo.Password != null)
+        {
+            try
+            {
+                var enviarJSON = JsonSerializer.Serialize(userInfo);
+                var enviarContent = new StringContent(enviarJSON, Encoding.UTF8, "application/json");
+
+                var result = await http.PostAsync($"api/account/LoginECommerce/", enviarContent);
+                if (result.IsSuccessStatusCode)
+                {
+                    var response = await DeserializarRespuesta<UserClienteInfo>(result, new JsonSerializerOptions() { PropertyNameCaseInsensitive = true });
+                    await loginService.Login(response.userToken.Token);
+                    await callback.Invoke(response.ClienteId ?? 0);
+                }
+
+                else
+                {
+                    error = true;
+                    errorMessage = await result.Content.ReadAsStringAsync();
+
+                }
+            }
+            catch (Exception ex)
+            {
+            }
+
+
+        }
+        else
+        {
+            toastService.ShowError("Usuario o contraseña incorrectos");
+        }
+    }
+
+}
+

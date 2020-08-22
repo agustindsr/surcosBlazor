@@ -1,0 +1,72 @@
+﻿@inject HttpClient http
+@inject IJSRuntime js
+@inject IToastService toastService
+@attribute [Authorize(Roles = "Admin, Configuracion")]
+
+@if (cargando)
+{<Loading></Loading>}
+@if (provincia != null)
+{
+
+    <EditForm Model="@provincia" OnValidSubmit="@(async()=>{cargando = true; await Confirmar();})">
+        <DataAnnotationsValidator />
+        <div class="form-group">
+            <label>Nombre</label>
+            <input class="form-control" @bind="@provincia.nombre" />
+            <ValidationMessage For="(()=>provincia.nombre)"></ValidationMessage>
+        </div>
+        <div class="form-group">
+            <label>Habilitado para E-Commerce</label>
+            <div class="d-flex"> <input type="checkbox" class="form-control" @bind="@provincia.eCommerce" /><span>@(provincia.eCommerce ? " On" : " Off")</span></div>
+        </div>
+        <button class="btn-outline-olive btn-block" type="submit">@accion</button>
+    </EditForm>
+}
+@code {
+    [Parameter]
+    public Provincia provincia { get; set; }
+    [Parameter]
+    public string accion { get; set; }
+    [Parameter]
+    public EventCallback callback { get; set; }
+    public bool cargando { get; set; }
+    public async Task Confirmar()
+    {
+        try
+        {
+            if (accion == "Crear")
+            {
+                await http.PostJsonAsync("api/provincia", provincia);
+                cargando = false;
+
+                toastService.ShowSuccess($"Se creó correctamento la provincia {provincia.nombre}");
+            }
+            if (accion == "Editar")
+            {
+                await http.PutJsonAsync($"api/provincia/{provincia.Id}", provincia);
+                cargando = false;
+
+                toastService.ShowSuccess($"Se editó correctamento la provincia {provincia.nombre}");
+
+            }
+        }
+        catch (Exception ex)
+        {
+            cargando = false;
+
+            toastService.ShowError($"Ocurrio un error: {ex.Message}");
+
+        }
+
+
+        await CloseAllModals();
+
+        await callback.InvokeAsync(new Object());
+
+    }
+    public async Task CloseAllModals()
+    {
+
+        await js.InvokeAsync<object>("CloseAllModals");
+    }
+}

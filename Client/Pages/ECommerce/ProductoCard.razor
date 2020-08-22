@@ -1,0 +1,123 @@
+﻿@if (producto != null) { 
+    <div class="producto @(esElUltimo? "ultimoProducto" :"")" @onmouseover="@(() => {focus = true; })" @onmouseout="@(() => { focus = false; Console.WriteLine("dje el foco"); })" >
+        @if (_descuento > 0.00M)
+        {
+
+            <div class="descuento">
+                <span>- @Convert.ToInt32(_descuento)%</span>
+            </div>
+        }
+    <div class="imagen @(!string.IsNullOrWhiteSpace(productoPresentacion.descripcion)? "descripcionImg":"")">
+        <img loading="lazy" src="@producto.Foto" @onmouseover="@(() => {focus = true; })"/>
+        @if (!string.IsNullOrWhiteSpace(productoPresentacion.descripcion))
+        {
+            <div @onmouseover="@(() => {focus = true; })" class="descripcion">@productoPresentacion.descripcion</div>
+        }
+    </div>
+
+        <div class="botonera @(productosEnCarrito.Select(x => x.producto.Id).Contains(productoPresentacion.Id) ? "agregado": "")">
+            <div class="cantidad" @onmouseover="@(() => {focus = true; })">
+                <div @onmouseover="@(() => {focus = true; })" @onclick="@(() => { if (cantidad > 1) { cantidad--; addProducto.Invoke(productoPresentacion, cantidad, listaId); }else if (cantidad == 1){deleteProducto.Invoke(productoPresentacion);} })">-</div>
+
+                <input @onmouseover="@(() => {focus = true; })" type="number" min="0" step="1" @bind="cantidad" />
+                <div @onmouseover="@(() => {focus = true; })" @onclick="@(()=> { cantidad++; addProducto.Invoke(productoPresentacion, cantidad, listaId); })">+</div>
+            </div>
+            <div @onmouseover="@(() => {focus = true; })" class="boton @(cantidad == 0 ? "" : "disabled")"  disabled="@(cantidad > 0 ? false : true)" @onclick="@(() => { if (cantidad > 0 && focus) { deleteProducto.Invoke(productoPresentacion);  } else if(cantidad >= 0) { cantidad++; addProducto.Invoke(productoPresentacion, cantidad, listaId); } })">
+              
+                    <i class="fas fa-shopping-cart mr-1"></i>
+                    @(cantidad > 0 ? "AGREGADO": "AGREGAR")
+
+               
+            </div>
+        </div>
+
+        <div class="cuerpo">
+            <div class="nombre">
+                <h3>@producto.nombre</h3>
+            </div>
+            @if (productoPresentaciones != null)
+            {
+
+                <div class="productoPresentaciones">
+
+                    @if (productoPresentaciones.Count() == 1)
+                    {
+                        <span>@productoPresentaciones[0].PresentacionProducto.nombre</span>
+                    }
+                    else
+                    {
+                        <select class="selectPresentaciones" @onchange="((ChangeEventArgs e) => { productoPresentacion = productoPresentaciones.Single(x => x.Id == Convert.ToInt32(e.Value.ToString())); verCantidadEnCarrito(productoPresentacion); calcularDescuentoYPrecio(); this.StateHasChanged(); })">
+                            @foreach (ProductoPresentacion presentacion in productoPresentaciones)
+                            {
+                                <option value="@presentacion.Id">@presentacion.PresentacionProducto.nombre</option>
+                            }
+                        </select>
+
+                    }
+
+                </div>
+
+                <div class="precio">
+
+                    <strong>$@Math.Round(_precio, 2)</strong>
+                    @if (_descuento > 0.00M)
+                    {
+                        <span class="precioAnterior"> Antes: $@Math.Round(_precio / (1 - _descuento / 100), 2)</span>
+                    }
+                </div>
+
+
+            }
+
+        </div>
+    </div>
+}
+@code{
+    public int cantidad { get; set; } = 0;
+    [Parameter]
+    public Producto producto { get; set; }
+    [Parameter] public List<ProductoEnCarritoModel> productosEnCarrito { get; set; }
+    public bool focus { get; set; } = false;
+    [Parameter]public bool esElUltimo { get; set; } = false;
+
+    [Parameter] public int listaId { get; set; }
+    [Parameter] public List<ProductoPresentacion> productoPresentaciones { get; set; }
+    public ProductoPresentacion productoPresentacion { get; set; }
+    [Parameter]public Func<ProductoPresentacion,decimal> calcularPrecio { get; set; }
+    [Parameter] public Func<ProductoPresentacion, decimal> descuento { get; set; }
+    [Parameter]
+    public Func<ProductoPresentacion, int,int, Task> addProducto { get; set; }
+    [Parameter] public Func<ProductoPresentacion,Task> deleteProducto { get; set; }
+
+    public decimal _descuento { get; set; }
+    public decimal _precio { get; set; }
+
+    protected override void OnParametersSet()
+    {
+        if (producto != null && producto.Id != 0 && productoPresentacion == null) {
+
+            productoPresentacion = productoPresentaciones[0];
+        }
+
+        verCantidadEnCarrito(productoPresentacion);
+        calcularDescuentoYPrecio();
+        this.StateHasChanged();
+    }
+
+    public void verCantidadEnCarrito(ProductoPresentacion productoPresentacion) {
+
+        if (productosEnCarrito.FirstOrDefault(x => x.producto.Id == productoPresentacion.Id) != null)
+        {
+            cantidad = productosEnCarrito.FirstOrDefault(x => x.producto.Id == productoPresentacion.Id).cantidad;
+        }
+        else
+        {
+            cantidad = 0;
+        }
+    }
+    public void calcularDescuentoYPrecio() {
+        _descuento = descuento.Invoke(productoPresentacion);
+        _precio = calcularPrecio.Invoke(productoPresentacion);
+    }
+
+}

@@ -1,0 +1,142 @@
+﻿@page "/BackOffice/Produccion/OrdenProduccion"
+@layout BackOfficeLayout
+@inject HttpClient http
+@inject AuthenticationStateProvider authStateProvider
+@inject IRepositorio repositorio
+@inject IToastService toastService
+@inject NavigationManager uri
+@attribute [Authorize(Roles = "Admin, Produccion")]
+
+@if (cargando)
+{
+    <Loading></Loading>
+}
+<h3>Nueva Orden Producción</h3>
+
+
+
+@if (orden != null)
+{
+    <EditForm Model="orden" OnValidSubmit="@(async()=>{cargando = true; await CrearOrdenProduccion();})">
+        <Blazored.FluentValidation.FluentValidationValidator />
+        <ValidationSummary />
+        <div class="p-4" style="box-shadow:1px 1px 3px #323232">
+            <div class="d-flex justify-content-between">
+                <div>
+                    <SelectGenerico Label="Deposito"
+                                    Context="deposito"
+                                    TList="depositos"
+                                    SelectItem="@((Deposito deposito)=> { this.orden.Deposito = deposito; orden.DepositoId = deposito.Id; })" TItemActual="orden.Deposito">
+                        <TTemplate>
+                            @deposito.nombre
+                        </TTemplate>
+                    </SelectGenerico>
+                </div>
+                <div class="form-group">
+                    <label>Fecha</label>
+                    <input type="date" value="@orden.fecha.ToString("yyyy-MM-dd")" @onchange="(ChangeEventArgs e)=> { orden.fecha = Convert.ToDateTime(e.Value); }" />
+                </div>
+            </div>
+        </div>
+
+
+
+        <div class="col-md-12 my-4">
+            <div class="col-md-12 d-flex justify-content-lg-between">
+                <h3>Productos</h3>
+                <div class="btn btn-info" @onclick="@(()=> orden.detallesOrdenProduccion.Add(new DetalleOrdenProduccion()))">Agregar</div>
+            </div>
+            <table class="table">
+                <thead>
+                    <tr>
+                        <th>Producto</th>
+                        <th>Cantidad</th>
+                        <th></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (DetalleOrdenProduccion detalle in orden.detallesOrdenProduccion)
+                    {
+                        <tr>
+                            <td>
+                                @if (detalle.ProductoPresentacion == null)
+                                {
+                                    <InputBuscaTypeahead ElementoSeleccionado="((ProductoPresentacion producto) => { detalle.ProductoPresentacion = producto; detalle.ProductoPresentacionId = producto.Id; this.StateHasChanged(); return producto; })"
+                                                         Context="Producto"
+                                                         SearchMethod="(async (string name) => await buscarProducto(name))">
+                                        <MyResultTemplate>
+                                            <div><img class="mx-2" src="@Producto.Producto.Foto" style="width:25px; height:25px" />@Producto.Producto.nombre, @Producto.PresentacionProducto.nombre</div>
+                                        </MyResultTemplate>
+                                    </InputBuscaTypeahead>
+                                }
+                                else
+                                {
+                                    <div><img class="mx-2" src="@detalle.ProductoPresentacion.Producto.Foto" style="height:20px; width:20px;border-radius:50%;" />@detalle.ProductoPresentacion.Producto.nombre.ToUpper(), @detalle.ProductoPresentacion.PresentacionProducto.nombre</div>
+
+                                }
+                            </td>
+                            <td>
+                                <input class="form-control" type="number" min="0" step="1" @bind="detalle.cantidad" />
+                            </td>
+                            <td><i class="far fa-trash-alt text-danger" style="cursor:pointer " @onclick="@(()=>{ orden.detallesOrdenProduccion.Remove(detalle); })"></i></td>
+                        </tr>
+                    }
+                </tbody>
+
+            </table>
+        </div>
+
+        <button type="submit" class="btn btn-info btn-block">CREAR ORDEN</button>
+
+    </EditForm>
+}
+@code {
+    public OrdenProduccion orden { get; set; } = new OrdenProduccion();
+    public List<Deposito> depositos { get; set; }
+    public List<ProductoPresentacion> productoPresentaciones { get; set; }
+    public System.Security.Claims.ClaimsPrincipal User { get; set; }
+    public string userName { get; set; }
+    public bool cargando { get; set; }
+    public async Task<List<ProductoPresentacion>> buscarProducto(string name)
+    {
+
+        return await http.GetJsonAsync<List<ProductoPresentacion>>("api/productoPresentacion/ProductosFormulados");
+
+    }
+
+    protected override async Task OnInitializedAsync()
+    {
+        var authState = await authStateProvider.GetAuthenticationStateAsync();
+        User = authState.User;
+        userName = User.Identity.Name;
+        await ListarDepositos();
+
+    }
+    public async Task CrearOrdenProduccion()
+    {
+
+        var respuesta = await repositorio.Post("api/ordenProduccion", orden);
+        cargando = false;
+        if (!respuesta.Error)
+        {
+            uri.NavigateTo("BackOffice/Produccion/ListadoOrdenesProduccion");
+            toastService.ShowSuccess("Se creó correctamente la orden de produccion");
+        }
+        else
+        {
+
+            toastService.ShowError(respuesta.HttpResponseMessage.Content.ReadAsStringAsync().Result);
+
+        }
+
+
+
+
+
+    }
+    public async Task ListarDepositos()
+    {
+        depositos = await http.GetJsonAsync<List<Deposito>>($"api/deposito/depositosHabilitados?userName={userName}");
+
+    }
+}

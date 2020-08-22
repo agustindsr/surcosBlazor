@@ -1,0 +1,39 @@
+﻿@typeparam T
+
+<ListadoGenerico listado="listado">
+    <HayRegistros>
+        <div class="@($"RadiobuttonGenerico")">
+            @foreach (T item in listado)
+            {
+                @if (this.item != null && this.item.Equals(item))
+                {
+                    <input checked @onclick="(() => OnChangeFunction.InvokeAsync(item))" type="radio" name="@($"RadiobuttonGenerico{item.GetType().Name}")" />
+                    <span>@item.GetType().GetProperty(propAMostrar).GetValue(item, null)</span>
+                }
+                else
+                {
+                    <input @onclick="(() => OnChangeFunction.InvokeAsync(item))" type="radio" name="@($"RadiobuttonGenerico{item.GetType().Name}")" />
+                    <span>@item.GetType().GetProperty(propAMostrar).GetValue(item, null)</span>
+
+                }
+            }
+        </div>
+    </HayRegistros>
+</ListadoGenerico>
+
+@code {
+    [Parameter] public List<T> listado { get; set; }
+    [Parameter] public string propAMostrar { get; set; }
+    [Parameter] public EventCallback<T> OnChangeFunction { get; set; }
+    [Parameter] public Func<Task<List<T>>> ListarItems { get; set; }
+    [Parameter] public T item { get; set; }
+    protected override async Task OnInitializedAsync()
+    {
+        await ListarItem();
+    }
+
+    public async Task ListarItem()
+    {
+        listado = await ListarItems();
+    }
+}

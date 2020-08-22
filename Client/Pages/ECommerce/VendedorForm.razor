@@ -1,0 +1,125 @@
+﻿@inject HttpClient http
+@inject IJSRuntime js
+@using SurcosBlazor.Client.Repositorio
+@inject IRepositorio repositorio
+@inject IToastService toastService
+@if (vendedor != null)
+{
+
+    <EditForm Model="@vendedor" OnValidSubmit="Confirmar">
+        <DataAnnotationsValidator />
+        <div class="col-md-12 row justify-content-between">
+            <div class="col-md-6">
+
+                <div class="form-group col-md-12">
+                    <InputImg Label="Foto" ImagenSeleccionada="ImagenSeleccionada" ImagenTemporal="@imagenTemporal"></InputImg>
+                </div>
+
+            </div>
+
+            <div class="col-md-6">
+
+                <div class="form-group col-md-12">
+                    <label>Nombre</label>
+                    <input class="form-control" @bind="@vendedor.nombre" />
+                    <ValidationMessage For="(()=>vendedor.nombre)"></ValidationMessage>
+                </div>
+
+
+                <div class="form-group col-md-12">
+                    <label>Fecha Nacimiendo</label>
+                    <div class="d-flex"> <input type="date" class="form-control" @bind="@vendedor.FechaNacimiento" /></div>
+                    <ValidationMessage For="(()=>vendedor.FechaNacimiento)"></ValidationMessage>
+
+                </div>
+                <div class="form-group col-md-12">
+                    <label>Celular</label>
+                    <div class="d-flex"> <input type="text" class="form-control" @bind="@vendedor.numeroCelular" /></div>
+                    <ValidationMessage For="(()=>vendedor.numeroCelular)"></ValidationMessage>
+
+                </div>
+                <div class="form-group col-md-12">
+                    <label>Email</label>
+                    <div class="d-flex"> <input type="text" class="form-control" @bind="@vendedor.email" /></div>
+                    <ValidationMessage For="(()=>vendedor.email)"></ValidationMessage>
+
+                </div>
+                
+            </div>
+            <div class="col-md-4">
+
+            </div>
+
+        </div>
+
+
+
+        @*@foreach (VendedorDepartamento vendedorDepartamento in vendedor.VendedorDepartamento)
+            {
+
+                <strong>@vendedorDepartamento.departamento.nombre</strong>
+
+
+            }*@
+        <button class="btn-outline-olive btn-block col-md-12" type="submit">Editar</button>
+
+
+    </EditForm>
+}
+@code {
+    [Parameter] public Vendedor vendedor { get; set; }
+    [Parameter] public EventCallback callback { get; set; }
+    public List<VendedorDepartamento> vendedorDepartamentos { get; set; }
+
+    public string imagenTemporal { get; set; }
+
+    public async Task Confirmar()
+    {
+        try
+        {
+    
+                await http.PutJsonAsync($"api/vendedor/{vendedor.Id}", vendedor);
+                toastService.ShowSuccess($"Se editó correctamente el vendedor {vendedor.nombre}");
+        }
+        catch (Exception ex)
+        {
+
+            toastService.ShowError($"Ocurrio un error al intentar crear el vendedor  {ex.Message}");
+        }
+
+
+        await CloseAllModals();
+
+        await callback.InvokeAsync(new Object());
+
+    }
+    public async Task CloseAllModals()
+    {
+
+        await js.InvokeAsync<object>("CloseAllModals");
+    }
+
+
+    private void ImagenSeleccionada(string imagenBase64)
+    {
+        vendedor.Foto = imagenBase64;
+    }
+
+
+
+    protected override void OnParametersSet()
+    {
+        if (vendedor != null)
+        {
+
+            if (!string.IsNullOrWhiteSpace(vendedor.Foto))
+            {
+                imagenTemporal = vendedor.Foto;
+            }
+
+
+        }
+
+    }
+
+}

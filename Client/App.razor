@@ -1,0 +1,22 @@
+﻿<CascadingAuthenticationState>
+
+    <Router AppAssembly="@typeof(Program).Assembly">
+        <Found Context="routeData">
+            <AuthorizeRouteView RouteData="@routeData" DefaultLayout="@typeof(ClearLayout)">
+                <NotAuthorized>
+                    <h2>Sorry</h2>
+                    <p>No estas autorizado para ver esta pagina</p>
+                </NotAuthorized>
+                <Authorizing>
+                    <h2>Autentificando usuario..</h2>
+                </Authorizing>
+            </AuthorizeRouteView>
+        </Found>
+        <NotFound>
+            <LayoutView Layout="@typeof(ClearLayout)">
+                <h2>Ups</h2>
+                <p>No hay nada en esta dirección</p>
+            </LayoutView>
+        </NotFound>
+    </Router>
+</CascadingAuthenticationState>

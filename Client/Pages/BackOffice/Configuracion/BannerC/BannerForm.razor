@@ -1,0 +1,113 @@
+﻿@inject HttpClient http
+@inject IJSRuntime js
+@using SurcosBlazor.Client.Repositorio
+@inject IRepositorio repositorio
+@inject IToastService toastService
+@attribute [Authorize(Roles = "Admin, Configuracion")]
+
+@if (cargando)
+{
+
+    <Loading></Loading>
+}
+@if (banner != null)
+{
+
+    <EditForm Model="@banner" OnValidSubmit="@(async()=>{cargando = true; await Confirmar();})">
+        <DataAnnotationsValidator />
+        <div class="col-md-12 row justify-content-between">
+            <div class="col-md-12">
+
+                <div class="form-group col-md-12">
+                    <InputImg Label="Foto" ImagenSeleccionada="ImagenSeleccionada" ImagenTemporal="@imagenTemporal"></InputImg>
+                </div>
+                
+            </div>
+
+
+       
+                <div class="form-group col-md-12">
+                    <label>Clasificación</label>
+                    <div class="d-flex"> <input type="text" class="form-control" @bind="@banner.orden" /></div>
+                    <ValidationMessage For="(()=>banner.orden)"></ValidationMessage>
+
+                </div>
+            </div>
+       
+        <button class="btn-outline-olive btn-block col-md-12" type="submit">@accion</button>
+
+
+    </EditForm>
+}
+@code {
+    [Parameter] public Banner banner { get; set; }
+    [Parameter] public string accion { get; set; }
+    [Parameter] public EventCallback callback { get; set; }
+    public bool cargando { get; set; } = false;
+    public string imagenTemporal { get; set; }
+
+    public async Task Confirmar()
+    {
+        try
+        {
+            if (accion == "Crear")
+            {
+                await http.PostJsonAsync("api/banner", banner);
+                cargando = false;
+
+                toastService.ShowSuccess($"Se creó correctamente el banner ");
+
+            }
+            if (accion == "Editar")
+            {
+                await http.PutJsonAsync($"api/banner/{banner.Id}", banner);
+                cargando = false;
+
+                toastService.ShowSuccess($"Se editó correctamente el banner");
+
+            }
+        }
+        catch (Exception ex)
+        {
+            cargando = false;
+
+            toastService.ShowError($"Ocurrio un error al intentar crear el banner  {ex.Message}");
+        }
+
+
+        await CloseAllModals();
+
+        await callback.InvokeAsync(new Object());
+
+    }
+    public async Task CloseAllModals()
+    {
+
+        await js.InvokeAsync<object>("CloseAllModals");
+    }
+
+
+    private void ImagenSeleccionada(string imagenBase64)
+    {
+        banner.Foto = imagenBase64;
+    }
+
+
+
+    protected override void OnParametersSet()
+    {
+        if (banner != null)
+        {
+
+            if (!string.IsNullOrWhiteSpace(banner.Foto))
+            {
+                imagenTemporal = banner.Foto;
+            }
+
+
+        }
+
+    }
+
+
+}

@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+Este archivo se usa en el proceso de publicación y empaquetado del proyecto web. Para personalizar el comportamiento de este proceso,
+edite el archivo MSBuild. Visite https://go.microsoft.com/fwlink/?LinkID=208121 para obtener más información. 
+-->
+<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <PropertyGroup>
+    <TimeStampOfAssociatedLegacyPublishXmlFile />
+    <EncryptedPassword>AQAAANCMnd8BFdERjHoAwE/Cl+sBAAAAW74rfkMhF0GcmP3nNpWSagAAAAACAAAAAAAQZgAAAAEAACAAAAAii3JHZDYCY+PYkMwbgsb/v5Lx9HfSQJ/A8jrFVA6oQAAAAAAOgAAAAAIAACAAAACf0Kne3altAR7YM24SXNg1XSKGH0rZww5JZwdQheAWrYAAAABA2tDFuVM/yDxLYAqayN8pvFR532oJrnV9fUn7Z7RkG5wbI0llp3RRJRhmQhVi61IQ5C3Sp75L931OON+uOVgQrNl0MFhamA17/gvSuo/kOUVfQfd+pIRQNaQvE6YQ8u/TER4BEcEAVcEsXSHMurao/xpVfic1mn3H+AuP+mwzHkAAAADzcAApiJ/Nw237oaw4sgUoZopuLDfHxaKlIZcrJ/qwJrZyJ5rHj8dhv+imY3b49LkRPc+mUJ5H9N2FlrTDE9B3</EncryptedPassword>
+  </PropertyGroup>
+  <ItemGroup>
+    <DestinationConnectionStrings Include="AzureStorage">
+      <Value>Data Source=tcp:surcoswebservicedbserver.database.windows.net,1433%3bInitial Catalog=Surcos_db%3bUser Id=agusdsr%40surcoswebservicedbserver%3bPassword=Indexeado#</Value>
+    </DestinationConnectionStrings>
+    <DestinationConnectionStrings Include="DefaultConnection">
+      <Value>Data Source=tcp:surcoswebservicedbserver.database.windows.net,1433%3bInitial Catalog=Surcos_db%3bUser Id=agusdsr%40surcoswebservicedbserver%3bPassword=Indexeado#</Value>
+    </DestinationConnectionStrings>
+  </ItemGroup>
+</Project>

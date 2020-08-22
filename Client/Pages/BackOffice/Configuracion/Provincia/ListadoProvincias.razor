@@ -1,0 +1,71 @@
+﻿@layout BackOfficeLayout
+@attribute [Authorize(Roles = "Admin, Configuracion")]
+
+@page "/BackOffice/Configuraciones/ListadoProvincias"
+@inject HttpClient http
+@inject NavigationManager uri
+@inject IJSRuntime js
+@using SurcosBlazor.Client.Repositorio
+@inject IRepositorio  repositorio
+
+<nav aria-label="breadcrumb">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item" @onclick="@(()=>uri.NavigateTo("BackOffice/Configuraciones"))">Configuraciones</li>
+        <li class="breadcrumb-item active" aria-current="page" @onclick="@(()=>uri.NavigateTo("BackOffice/Configuraciones/ListadoProvincias"))">Listado Provincias</li>
+    </ol>
+</nav>
+<div>
+    <div class="border-bottom border-secondary my-2">
+        <h2 class="">Provincias</h2>
+    </div>
+    <BotoneraAcciones Context="provincia"
+                      Titem="provincia"
+                      agregar="true">
+        <modalContentAgregar>
+            <ProvinciaForm accion="Crear" provincia="new Provincia()" callback="(async () => { await tablaGenerica.ListarItemsApi(); })"></ProvinciaForm>
+        </modalContentAgregar>
+
+
+    </BotoneraAcciones>
+
+    <TablaGenerica @ref="tablaGenerica"
+                   elementosAmostrar='new List<string[]> { new string[3]{"Id", "Id","Texto" },new string[3]{ "Nombre","nombre","Text"},new string[3]{ "E-Commerce","eCommerce","Checkbox" }}'
+                   consultaApi='new TablaGenerica<Provincia>.ConsultarApi {  consultaApi= true, baseUrl= "api/provincia?", paginacion=true, cantidadDeRegistrosAMostrar=10}'
+                   acciones="true"
+                   detalle="true"
+                   editar="true"
+                   selectTitem="((Provincia provincia)=>ElementoSeleccionado(provincia))"
+                   detalleUrl="BackOffice/Configuraciones/Provincia"
+                   eliminar="true"
+                   eliminarFunc="(async ()=> { await EliminarProvincia(provincia); this.StateHasChanged(); })">
+
+        <modalContentEditar>
+            <ProvinciaForm provincia="provincia" callback="(()=>this.StateHasChanged())" accion="Editar"></ProvinciaForm>
+        </modalContentEditar>
+
+    </TablaGenerica>
+
+</div>
+
+
+@code {
+
+    public List<Provincia> provincias { get; set; }
+    public Provincia provincia { get; set; }
+    public TablaGenerica<Provincia> tablaGenerica;
+
+
+
+    public async Task EliminarProvincia(Provincia provincia)
+    {
+        await repositorio.Delete($"api/provincia/{provincia.Id}");
+        this.StateHasChanged();
+    }
+    public Provincia ElementoSeleccionado(Provincia prov)
+    {
+        provincia = prov;
+        this.StateHasChanged();
+        return provincia;
+    }
+
+}

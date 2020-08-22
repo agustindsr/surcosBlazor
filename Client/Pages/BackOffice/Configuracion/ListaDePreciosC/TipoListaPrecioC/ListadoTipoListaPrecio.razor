@@ -1,0 +1,65 @@
+﻿@layout BackOfficeLayout
+@page "/BackOffice/Configuraciones/ListadoTipoListaPrecio"
+@inject HttpClient http
+@inject NavigationManager uri
+@attribute [Authorize(Roles = "Admin, Configuracion")]
+
+    <nav aria-label="breadcrumb">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item" @onclick="@(()=>uri.NavigateTo("/BackOffice/Configuraciones"))">Configuraciones</li>
+            <li class="breadcrumb-item active" aria-current="page" @onclick="@(()=>uri.NavigateTo("/BackOffice/Configuraciones/ListadoTipoListaPrecio"))">Listado de Tipos Lista Precios</li>
+        </ol>
+    </nav>
+<div>
+    <div class="border-bottom border-secondary my-2">
+        <h2 class="">Tipos de lista de Precios</h2>
+    </div>
+    <BotoneraAcciones T="TipoListaPrecio" agregar="true">
+        <modalContentAgregar>
+            <TipoListaPrecioForm tipoListaPrecio="new TipoListaPrecio()" callback="(async() => {this.StateHasChanged();await tablaGenerica.ListarItemsApi(); })"
+                                 accion="Crear">
+            </TipoListaPrecioForm>
+        </modalContentAgregar>
+    </BotoneraAcciones>
+    <TablaGenerica @ref="tablaGenerica"
+                   elementosAmostrar='new List<string[]> {
+                                new string[3]{"Id", "Id","Texto" },
+                                new string[3]{ "Nombre","nombre","Text" },new string[3]{ "Minimo de Compra ($)","minimoDeCompra","Text" }}'
+                   acciones="true"
+                   detalle="true"
+                   detalleUrl="BackOffice/Configuraciones/TipoListaPrecio"
+                   consultaApi='new TablaGenerica<TipoListaPrecio>.ConsultarApi {  baseUrl=$"api/tipoListaPrecio?", consultaApi=true, paginacion=true, cantidadDeRegistrosAMostrar=10}'
+                   editar="true"
+                   selectTitem="((TipoListaPrecio tipoListaPrecio)=>ElementoSeleccionado(tipoListaPrecio))"
+                   eliminar="true"
+                   eliminarFunc="@(async ()=>await EliminarTipoListaPrecio(tipoListaPrecio))">
+
+        <modalContentEditar>
+            <TipoListaPrecioForm tipoListaPrecio="tipoListaPrecio" callback="(()=>this.StateHasChanged())"
+                                 accion="Editar">
+            </TipoListaPrecioForm>
+        </modalContentEditar>
+
+    </TablaGenerica>
+</div>
+@code {
+    public TipoListaPrecio tipoListaPrecio { get; set; }
+    public TablaGenerica<TipoListaPrecio> tablaGenerica { get; set; }
+
+
+    public async Task EliminarTipoListaPrecio(TipoListaPrecio tipoListaPrecio)
+    {
+        await http.DeleteAsync($"api/tipoListaPrecio/{tipoListaPrecio.Id}");
+        this.tipoListaPrecio = null;
+
+    }
+
+
+    public TipoListaPrecio ElementoSeleccionado(TipoListaPrecio tipoListaPrecio)
+    {
+
+        this.tipoListaPrecio = tipoListaPrecio;
+        this.StateHasChanged();
+        return tipoListaPrecio;
+    }
+}

@@ -1,0 +1,74 @@
+﻿@inject HttpClient http
+@page "/BackOffice/Configuraciones/ModificacionDeCostos"
+@layout BackOfficeLayout
+@inject IRepositorio repositorio
+@inject IToastService toastService
+@attribute [Authorize(Roles = "Admin, Configuracion")]
+@inject NavigationManager uri
+@if (cargando)
+{
+    <Loading></Loading>
+}
+<nav aria-label="breadcrumb">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item" @onclick="@(()=>uri.NavigateTo("/BackOffice/Configuraciones"))">Configuraciones</li>
+        <li class="breadcrumb-item active" aria-current="page" @onclick="@(()=>uri.NavigateTo("/BackOffice/Configuraciones/ModificacionDeCostos"))">Modificación costo fijos</li>
+    </ol>
+</nav>
+<h3>Modificación de precios con costo Fijo</h3>
+<ListadoGenerico listado="productosPresentacion" T="ProductoPresentacion">
+    <HayRegistros>
+        <table class="table table-sm">
+            <thead>
+                <tr>
+                    <th colspan="2">PRODUCTO</th>
+                    <th>COSTO</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (ProductoPresentacion productoPresentacion in productosPresentacion)
+                {
+
+                    <tr>
+                        <td><img src="@productoPresentacion.Producto.Foto" style="height:25px;width:25px;border-radius:50%;" /></td>
+                        <td><strong>@productoPresentacion.Producto.nombre, @productoPresentacion.PresentacionProducto.nombre</strong></td>
+                        <td><strong><input class="form-control" type="number" min="0.00" step="0.0001" @bind="productoPresentacion.costo" /></strong></td>
+
+                    </tr>
+                }
+            </tbody>
+        </table>
+
+        <button type="submit" @onclick="@(async()=>{cargando = true; await GuardarCambios(); })" class="btn btn-sm btn-block btn-info">Guardar Cambios</button>
+    </HayRegistros>
+
+</ListadoGenerico>
+@code {
+    public List<ProductoPresentacion> productosPresentacion { get; set; }
+    public bool cargando { get; set; } = false;
+    protected override async Task OnInitializedAsync()
+    {
+        productosPresentacion = await http.GetJsonAsync<List<ProductoPresentacion>>("api/productopresentacion/ProductosNoFormulados");
+    }
+
+    public async Task GuardarCambios()
+    {
+        List<ProductoPresentacion> listaClon = productosPresentacion;
+        listaClon.ForEach(x => { x.Proveedor = null; x.PresentacionProducto = null; x.Producto = null; x.FormulaProducto = null; });
+        productosPresentacion = null;
+        var result = await repositorio.Post<List<ProductoPresentacion>>("api/productoPresentacion/ModificarCostos", listaClon);
+        cargando = false;
+        if (result.Error)
+        {
+            productosPresentacion = await http.GetJsonAsync<List<ProductoPresentacion>>("api/productopresentacion/ProductosNoFormulados");
+
+            toastService.ShowError(result.HttpResponseMessage.Content.ReadAsStringAsync().Result);
+        }
+        else
+        {
+            productosPresentacion = await http.GetJsonAsync<List<ProductoPresentacion>>("api/productopresentacion/ProductosNoFormulados");
+
+            toastService.ShowSuccess("Se modificaron los costos correctamente");
+        }
+    }
+}

@@ -1,0 +1,82 @@
+﻿@inject HttpClient htpp
+@inject IToastService toastService
+@inject IRepositorio repositorio
+@inject IJSRuntime js
+@attribute [Authorize(Roles = "Admin, Inventario")]
+
+
+@if (cargando)
+{
+    <Loading></Loading>
+}
+@if (movimiento != null)
+{
+    <EditForm Model="movimiento" OnValidSubmit="@(async()=>{cargando = true; await CrearMovimiento();})">
+
+        <div class="col-md-12 mt-2 mx-0 px-0"><strong>@movimiento.Inventario.ProductoPresentacion.Producto.nombre, @movimiento.Inventario.ProductoPresentacion.PresentacionProducto.nombre - @movimiento.Inventario.Deposito.nombre</strong></div>
+        <div>
+            <label class="mt-2 col-md-12 mx-0 px-0"><strong>Cantidad</strong></label>
+            <input type="number" min="1" required @bind="movimiento.cantidadUnidadesMovida" class="col-md-12 form-control" />
+        </div>
+        <div>
+            <label class="mt-2 col-md-12 mx-0 px-0"><strong>Descripción</strong></label>
+            <textarea class="form-control mb-2" @bind="movimiento.descripcion" />
+        </div>
+        <div class="col-md-12 row mx-0 px-0 align-items-center">
+            <div class="col-md-6">
+                <input type="radio" id="entra" name="drone" @onchange="@((ChangeEventArgs e)=> { if(e.Value.ToString() == "on"){ movimiento.entra=true; movimiento.sale=false; }})">
+                <label for="huey">Entra</label>
+            </div>
+
+            <div class="col-md-6">
+                <input type="radio" id="sale" name="drone" @onchange="@((ChangeEventArgs e)=> { if(e.Value.ToString() == "on"){ movimiento.sale=true; movimiento.entra=false; }})">
+                <label for="dewey">Sale</label>
+            </div>
+
+        </div>
+
+
+        <button type="submit" class="btn btn-sm btn-block my-2 btn-info">Crear Movimiento</button>
+    </EditForm>
+}
+@code {
+    [Parameter] public MovimientoInventario movimiento { get; set; }
+    [Parameter]
+    public EventCallback<Inventario> callback { get; set; }
+    public bool cargando { get; set; } = false;
+    public async Task CrearMovimiento()
+    {
+        @if (!(movimiento.entra && movimiento.sale) && !(!movimiento.entra && !movimiento.sale))
+        {
+            var result = await repositorio.Post("api/movimientoinventario", movimiento);
+            cargando = false;
+
+            if (result.Error)
+            {
+                toastService.ShowError(result.HttpResponseMessage.Content.ReadAsStringAsync().Result);
+
+            }
+            else
+            {
+                await callback.InvokeAsync(movimiento.Inventario);
+
+                toastService.ShowSuccess("Se creó el movimiento correctamente");
+
+                await CloseAllModals();
+
+            }
+        }
+        else
+        {
+            cargando = false;
+
+            toastService.ShowError("Debes seleccionar si el movimiento es de entrada o salida");
+        }
+    }
+
+    public async Task CloseAllModals()
+    {
+
+        await js.InvokeAsync<object>("CloseAllModals");
+    }
+}
